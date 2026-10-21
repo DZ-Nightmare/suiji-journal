@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1792571623384" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1792571623384">
-  <link rel="stylesheet" href="styles.css?v=1792571623384">
-  <script src="app.js?v=1792571623384" defer></script>
+  <link rel="icon" href="icon.svg?v=1792572798736" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1792572798736">
+  <link rel="stylesheet" href="styles.css?v=1792572798736">
+  <script src="app.js?v=1792572798736" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#timeline">跳到时间轴</a>
@@ -151,6 +151,13 @@
 </dialog>
 
 <dialog id="lightbox" class="lightbox"><button id="close-lightbox" aria-label="关闭图片">×</button><img id="lightbox-image" alt="随记原始图片"></dialog>
+<dialog id="attachment-overlay" class="attachment-overlay">
+  <div class="overlay-bar">
+    <b id="overlay-name"></b>
+    <button id="overlay-close" class="overlay-close" aria-label="关闭全屏预览">⊘</button>
+  </div>
+  <iframe id="overlay-frame" title="附件全屏预览"></iframe>
+</dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <!-- 配色选择器 -->

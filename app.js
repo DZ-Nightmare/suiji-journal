@@ -383,6 +383,22 @@ async function showImage(attachment) {
   }
 }
 
+/* ---------- 附件全屏浮层 ---------- */
+function openAttachmentOverlay(attachment, url) {
+  $('overlay-name').textContent = attachment.name;
+  $('overlay-frame').src = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
+  const overlay = $('attachment-overlay');
+  if (!overlay.open) overlay.showModal();
+  $('overlay-close').focus();
+}
+function closeAttachmentOverlay() {
+  const overlay = $('attachment-overlay');
+  if (overlay.open) overlay.close();
+}
+$('attachment-overlay').addEventListener('close', () => { $('overlay-frame').src = 'about:blank'; });
+$('overlay-close').addEventListener('click', closeAttachmentOverlay);
+$('attachment-overlay').addEventListener('click', e => { if (e.target === $('attachment-overlay')) closeAttachmentOverlay(); });
+
 /* ---------- Markdown 渲染（随记子集） ---------- */
 function inline(text, target) {
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|!?\[\[[^\]]+\]\]|\[[^\]]+\]\([^\s)]+\))/g;
@@ -507,8 +523,11 @@ function openNote(anchor) {
           const preview = node('iframe', undefined, 'attachment-frame');
           // 外层只承载自带的 viewer.html（可信）；附件内容在 viewer 内部的沙箱 iframe 里运行
           preview.title = `${attachment.name} 预览`;
-          preview.src = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
+          const viewerUrl = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
+          preview.src = viewerUrl;
           const actions = node('div', undefined, 'attachment-actions');
+          const expand = button('⛶', 'attachment-expand', () => openAttachmentOverlay(attachment, url));
+          expand.setAttribute('aria-label', '全屏预览');
           const open = node('a', '在新标签中打开 ↗', 'attachment-open');
           open.href = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
           open.target = '_blank';
@@ -516,7 +535,7 @@ function openNote(anchor) {
           const dl = node('a', '下载 ↓', 'attachment-download');
           dl.href = url;
           dl.download = attachment.name;
-          actions.append(open, dl);
+          actions.append(expand, open, dl);
           wrap.append(preview, actions);
           figure.prepend(wrap);
         } else if (isText) {

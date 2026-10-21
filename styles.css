@@ -466,7 +466,36 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
   display: block; width: 100%; height: 420px; border: 0;
   border-bottom: 1px solid var(--line); background: #fff;
 }
-.attachment-actions { display: flex; gap: 10px; padding: 10px 12px; }
+.attachment-actions { display: flex; gap: 10px; padding: 10px 12px; align-items: center; }
+.attachment-expand {
+  width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--soft); color: var(--accent-dark); font-size: 17px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.attachment-expand:hover { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* 附件全屏浮层（80% 视口） */
+.attachment-overlay {
+  border: 0; border-radius: 14px; padding: 0; background: var(--surface);
+  width: 80vw; height: 80vh; max-width: 80vw; max-height: 80vh;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .35); overflow: hidden;
+}
+.attachment-overlay::backdrop { background: var(--overlay); }
+.overlay-bar {
+  display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+  background: var(--soft); border-bottom: 1px solid var(--line);
+}
+.overlay-bar b {
+  font-size: 12.5px; font-weight: 600; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.overlay-close {
+  margin-left: auto; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--accent-deep, var(--accent-dark));
+  font-size: 17px; line-height: 1; flex: none;
+}
+.overlay-close:hover { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+#overlay-frame { display: block; width: 100%; height: calc(100% - 54px); border: 0; background: #fff; }
 .attachment-open {
   display: inline-block; background: var(--accent); color: var(--on-accent);
   padding: 9px 16px; border-radius: 8px; font-size: 12px;
@@ -589,4 +618,6 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
   .workspace { padding-bottom: 88px; }
   .lock-footer span { display: none; }
   .empty-state { padding-bottom: 30px; }
+  .attachment-overlay { width: 94vw; height: 88vh; max-width: 94vw; max-height: 88vh; }
+  .attachment-expand { width: 44px; height: 44px; }
 }
