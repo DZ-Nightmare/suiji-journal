@@ -536,7 +536,7 @@ function openNote(anchor) {
           dl.href = url;
           dl.download = attachment.name;
           actions.append(expand, open, dl);
-          wrap.append(preview, actions);
+          wrap.append(actions, preview);  // 按钮行在上，预览在下（统一顶部）
           figure.prepend(wrap);
         } else if (isText) {
           const box = node('details', undefined, 'attachment-text');
