@@ -1,0 +1,62 @@
+{
+  "sage": {
+    "label": "鼠尾草 · 默认",
+    "dark": false,
+    "colors": {
+      "bg": "#f7f8f2", "surface": "#fffefa", "sidebar": "#f0f2e9",
+      "ink": "#27392f", "body": "#475148", "muted": "#68705f",
+      "accent": "#416647", "accent-dark": "#304e35", "soft": "#e7ecdf",
+      "line": "#dce1d4", "on-accent": "#ffffff"
+    }
+  },
+  "terracotta": {
+    "label": "陶土 · 暖阳",
+    "dark": false,
+    "colors": {
+      "bg": "#faf6ef", "surface": "#fffdf8", "sidebar": "#f3ece1",
+      "ink": "#3b2c22", "body": "#5c4a3c", "muted": "#7d6a5a",
+      "accent": "#b0543a", "accent-dark": "#8c3f2b", "soft": "#f2e3d4",
+      "line": "#e4d5c3", "on-accent": "#ffffff"
+    }
+  },
+  "sakura": {
+    "label": "樱语 · 初绽",
+    "dark": false,
+    "colors": {
+      "bg": "#fdf5f6", "surface": "#fffcfc", "sidebar": "#f8eaee",
+      "ink": "#3d2a2e", "body": "#5e464c", "muted": "#876870",
+      "accent": "#b04a64", "accent-dark": "#8d3850", "soft": "#f6dfe6",
+      "line": "#edd5db", "on-accent": "#ffffff"
+    }
+  },
+  "lavender": {
+    "label": "薰衣草 · 暮色",
+    "dark": false,
+    "colors": {
+      "bg": "#f7f5fb", "surface": "#fdfcff", "sidebar": "#eeebf6",
+      "ink": "#2e2a3d", "body": "#4c4660", "muted": "#6f6884",
+      "accent": "#6b5ca8", "accent-dark": "#534590", "soft": "#e6e1f2",
+      "line": "#d8d2e6", "on-accent": "#ffffff"
+    }
+  },
+  "sky": {
+    "label": "晴空 · 远山",
+    "dark": false,
+    "colors": {
+      "bg": "#f2f7fa", "surface": "#fbfeff", "sidebar": "#e7eff4",
+      "ink": "#22323c", "body": "#40535e", "muted": "#5f727d",
+      "accent": "#2f7091", "accent-dark": "#245771", "soft": "#dce9f0",
+      "line": "#ccdde6", "on-accent": "#ffffff"
+    }
+  },
+  "night": {
+    "label": "夜阑 · 烛光",
+    "dark": true,
+    "colors": {
+      "bg": "#1e2229", "surface": "#262b33", "sidebar": "#23282f",
+      "ink": "#ece7dc", "body": "#c2bcb1", "muted": "#8d867b",
+      "accent": "#d2a765", "accent-dark": "#e0b97e", "soft": "#333a44",
+      "line": "#3a424d", "on-accent": "#22262c"
+    }
+  }
+}

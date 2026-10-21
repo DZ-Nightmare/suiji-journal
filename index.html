@@ -152,6 +152,18 @@
 
 <dialog id="lightbox" class="lightbox"><button id="close-lightbox" aria-label="关闭图片">×</button><img id="lightbox-image" alt="随记原始图片"></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<!-- 配色选择器 -->
+<div class="theme-picker">
+  <div class="theme-panel" id="theme-panel" hidden>
+    <p class="theme-panel-title">配色风格</p>
+    <div id="theme-options"></div>
+  </div>
+  <button id="theme-toggle" class="theme-toggle" aria-label="切换配色风格" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16"/></svg>
+  </button>
+</div>
+
 <noscript><p>请启用 JavaScript，以在浏览器中解锁和阅读加密随记。</p></noscript>
 </body>
 </html>

@@ -197,6 +197,15 @@ function render() {
   $('visible-count').textContent = `${notes.length} 篇`;
   $('empty-state').hidden = notes.length > 0;
   $('timeline-end').hidden = notes.length === 0;
+  const emptyTitle = $('empty-state').querySelector('h3');
+  const emptyText = $('empty-state').querySelector('p');
+  if (!state.notes.length) {
+    emptyTitle.textContent = '随记还空着。';
+    emptyText.textContent = '对任意 AI 说一句「记一条随记」，第一条就会出现在这里。';
+  } else {
+    emptyTitle.textContent = '这里还没有这个念头。';
+    emptyText.textContent = '换个关键词，或回到全部随记看看。';
+  }
 
   const f = state.filter;
   const labels = [
@@ -533,3 +542,49 @@ setInterval(() => {
     $('unlock-message').textContent = '离开已有一会儿，随记已自动锁定。';
   }
 }, 60000);
+
+/* ---------- 配色主题（右下角切换，选择记忆在本机） ---------- */
+const THEMES = [
+  { id: 'sage', label: '鼠尾草 · 默认', swatch: ['#f7f8f2', '#416647', '#27392f'] },
+  { id: 'terracotta', label: '陶土 · 暖阳', swatch: ['#faf6ef', '#b0543a', '#3b2c22'] },
+  { id: 'sakura', label: '樱语 · 初绽', swatch: ['#fdf5f6', '#b04a64', '#3d2a2e'] },
+  { id: 'lavender', label: '薰衣草 · 暮色', swatch: ['#f7f5fb', '#6b5ca8', '#2e2a3d'] },
+  { id: 'sky', label: '晴空 · 远山', swatch: ['#f2f7fa', '#2f7091', '#22323c'] },
+  { id: 'night', label: '夜阑 · 烛光', swatch: ['#1e2229', '#d2a765', '#ece7dc'] },
+];
+
+function applyTheme(id) {
+  const theme = THEMES.find(t => t.id === id) || THEMES[0];
+  document.documentElement.dataset.theme = theme.id;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = theme.swatch[0];
+  try { localStorage.setItem('journal-theme', theme.id); } catch { }
+  document.querySelectorAll('.theme-option').forEach(el => el.classList.toggle('active', el.dataset.theme === theme.id));
+}
+
+(function initThemePicker() {
+  let saved = 'sage';
+  try { saved = localStorage.getItem('journal-theme') || 'sage'; } catch { }
+  const options = $('theme-options');
+  for (const theme of THEMES) {
+    const el = button('', 'theme-option', () => applyTheme(theme.id));
+    el.dataset.theme = theme.id;
+    const swatches = node('span', undefined, 'theme-swatches');
+    theme.swatch.forEach(color => { const dot = node('i'); dot.style.background = color; swatches.append(dot); });
+    el.append(swatches, node('span', theme.label), node('span', '✓', 'check'));
+    options.append(el);
+  }
+  applyTheme(saved);
+  $('theme-toggle').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = $('theme-panel');
+    panel.hidden = !panel.hidden;
+    $('theme-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.theme-picker')) {
+      $('theme-panel').hidden = true;
+      $('theme-toggle').setAttribute('aria-expanded', 'false');
+    }
+  });
+})();
