@@ -71,6 +71,8 @@ body {
 }
 body:has(dialog[open]) { overflow: hidden; }
 h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
 button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; transition: background .15s, color .15s, transform .15s; }
 button:hover { color: var(--accent-dark); }
 button:disabled { opacity: .35; cursor: default; }
@@ -159,7 +161,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 .form-message.error { color: var(--error); }
 .lock-footer {
   display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  color: var(--muted); font-size: 11px;
+  color: var(--muted); font-size: 11px; padding-right: 130px;
 }
 .lock-footer span { letter-spacing: 2.5px; font-size: 9px; }
 
@@ -426,7 +428,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 }
 .reader-tags { display: flex; flex-wrap: wrap; gap: 8px; font-size: 10px; color: var(--accent); margin-bottom: 26px; }
 .reader-tags span::before { content: "# "; }
-.reader-body { font-size: 14px; line-height: 2.1; overflow-wrap: anywhere; }
+.reader-body { font-size: 14px; line-height: 2.1; overflow-wrap: anywhere; max-inline-size: 42em; }
 .reader-body h2 { font-family: var(--serif); font-size: 18px; font-weight: 500; color: var(--ink); margin: 26px 0 10px; }
 .reader-body h3 { font-family: var(--serif); font-size: 15px; color: var(--ink); margin: 20px 0 8px; }
 .reader-body blockquote {
@@ -473,14 +475,26 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 }
 
 /* ---------- 配色选择器 ---------- */
-.theme-picker { position: fixed; right: 22px; bottom: 22px; z-index: 90; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.theme-picker {
+  position: fixed; z-index: 90; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  right: max(22px, env(safe-area-inset-right));
+  bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px));
+}
 .theme-toggle {
-  width: 42px; height: 42px; border-radius: 50%; background: var(--surface);
-  border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--accent);
-  display: flex; align-items: center; justify-content: center;
+  height: 46px; padding: 0 16px; border-radius: 999px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--ink);
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
 }
 .theme-toggle:hover { border-color: var(--accent); transform: translateY(-2px); }
-.theme-toggle svg { width: 19px; height: 19px; }
+.theme-toggle-dots { display: flex; gap: 3px; }
+.theme-toggle-dots i {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+}
+.theme-toggle-dots i:nth-child(1) { background: var(--accent); }
+.theme-toggle-dots i:nth-child(2) { background: var(--soft); }
+.theme-toggle-dots i:nth-child(3) { background: var(--ink); }
+.theme-toggle-text { letter-spacing: 2px; }
 .theme-panel {
   background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
   box-shadow: var(--shadow); padding: 14px; width: 206px;
@@ -500,6 +514,25 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 .theme-option .check { margin-left: auto; color: var(--accent); font-size: 11px; visibility: hidden; }
 .theme-option.active .check { visibility: visible; }
 
+/* ---------- 数字对齐与动效偏好 ---------- */
+.date-stamp strong, .calendar-grid, .hero-meta, .month-button span { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------- 移动端专属控件（≤900px 显示） ---------- */
+.mobile-month, .mobile-revisit { display: none; }
+.mobile-month {
+  border: 1px solid var(--line); background: var(--surface); color: var(--body);
+  border-radius: 8px; padding: 9px 10px; font-size: 12px; max-width: 128px;
+  min-height: 40px;
+}
+.mobile-revisit {
+  border: 1px solid var(--line); background: var(--surface); color: var(--accent-dark);
+  border-radius: 999px; padding: 11px 18px; font-size: 12px; margin-top: 18px;
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 1120px) {
   .content-grid { grid-template-columns: 1fr; }
@@ -508,15 +541,31 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 @media (max-width: 900px) {
   .sidebar { display: none; }
   .workspace { margin-left: 0; width: 100%; padding: 0 20px; }
-  .mobile-lock { display: block; }
+  .topbar { height: auto; min-height: 68px; padding: 12px 0; padding-top: calc(12px + env(safe-area-inset-top)); }
+  .breadcrumb { display: none; }
+  .search-field { width: auto; flex: 1; }
+  .mobile-lock { display: block; min-height: 40px; }
+  .mobile-month, .mobile-revisit { display: inline-flex; align-items: center; }
   .lock-card { grid-template-columns: 1fr; gap: 40px; padding: 30px 0 50px; }
   .book-art { display: none; }
-  .lock-screen { padding: 28px 22px; }
+  .lock-screen { padding: 28px 22px; padding-top: calc(28px + env(safe-area-inset-top)); }
   .hero { flex-direction: column; align-items: flex-start; min-height: 0; }
   .hero h1 { font-size: 32px; letter-spacing: 2px; }
   .hero-art { display: none; }
   .timeline-entry { grid-template-columns: 38px minmax(0, 1fr); gap: 12px; }
   .card-main { padding: 20px 18px; }
-  .card-bottom { padding: 13px 18px; }
+  .card-bottom { padding: 13px 18px; flex-wrap: wrap; }
   .reader-content { padding: 22px 20px 34px; }
+  .reader { width: calc(100% - 16px); max-height: 96svh; }
+  /* 触控目标 ≥44px */
+  .filter-chip, .card-tag, .image-filter { min-height: 44px; display: inline-flex; align-items: center; padding: 8px 14px; }
+  .read-more { min-height: 44px; display: inline-flex; align-items: center; padding: 8px 4px; }
+  .sort-button, .image-filter, .mobile-lock { min-height: 44px; }
+  .text-button, .revisit-button, .primary-button { min-height: 46px; }
+  .main-footer { padding-bottom: calc(27px + env(safe-area-inset-bottom)); }
+  .theme-toggle { height: 50px; }
+  /* 悬浮配色按钮不遮挡内容 */
+  .workspace { padding-bottom: 88px; }
+  .lock-footer span { display: none; }
+  .empty-state { padding-bottom: 30px; }
 }

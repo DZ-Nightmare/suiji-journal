@@ -13,9 +13,10 @@ function main() {
 
   const git = (...args) => execFileSync('git', args, { cwd: lib.ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
-  git('add', 'journal.enc.json', 'media');
+  // vault/ 与 journal.config.json 已被 .gitignore 排除，其余站点文件全部入库
+  git('add', '-A');
   let changed = true;
-  try { changed = !!git('status', '--porcelain', 'journal.enc.json', 'media'); } catch { }
+  try { changed = !!git('status', '--porcelain'); } catch { }
   if (!changed) { console.log('· 内容没有变化，无需推送'); return; }
 
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');

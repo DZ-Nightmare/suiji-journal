@@ -44,6 +44,13 @@ function main() {
   const enc = lib.encryptPayload(payload, password, saltB64);
   fs.writeFileSync(path.join(lib.ROOT, 'journal.enc.json'), JSON.stringify(enc));
 
+  // 静态资源版本号：防止旧缓存呈现破版（用户浏览器缓存 styles.css/app.js 导致新功能不可见）
+  const indexFile = path.join(lib.ROOT, 'index.html');
+  const stamp = Date.now();
+  let html = fs.readFileSync(indexFile, 'utf8');
+  html = html.replace(/(styles\.css|app\.js|icon\.svg)(\?v=\d+)?/g, `$1?v=${stamp}`);
+  fs.writeFileSync(indexFile, html);
+
   const days = new Set(finalNotes.map(n => n.date)).size;
   console.log(`✓ 已加密 ${finalNotes.length} 篇随记（${days} 个记录日）→ journal.enc.json`);
   console.log(`✓ 已加密 ${keep.size} 个附件 → media/`);

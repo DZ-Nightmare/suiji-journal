@@ -166,6 +166,30 @@ function populate() {
 
   $('random-note').disabled = !state.notes.length;
   $('revisit-button').disabled = !state.notes.length;
+
+  // 手机端：侧栏隐藏后提供月份下拉与「偶遇旧念头」入口
+  if (!$('mobile-month')) {
+    const select = node('select', undefined, 'mobile-month');
+    select.id = 'mobile-month';
+    select.setAttribute('aria-label', '按月份筛选随记');
+    select.addEventListener('change', () => {
+      state.filter.month = select.value;
+      state.filter.day = '';
+      state.calendar = select.value || state.calendar;
+      render();
+    });
+    $('sort-button').before(select);
+    const revisit = button('✧ 偶遇一条旧念头 ↗', 'mobile-revisit', randomNote);
+    revisit.id = 'mobile-revisit';
+    document.querySelector('.hero-meta').after(revisit);
+  }
+  const allMonth = node('option', '全部月份');
+  allMonth.value = '';
+  $('mobile-month').replaceChildren(allMonth, ...months.map(month => {
+    const option = node('option', `${month.slice(0, 4)}.${month.slice(5, 7)}`);
+    option.value = month;
+    return option;
+  }));
 }
 
 function filteredNotes() {
@@ -222,6 +246,8 @@ function render() {
   document.querySelectorAll('.topic-button').forEach(el => el.classList.toggle('active', el.dataset.topic === f.topic));
   document.querySelectorAll('.filter-chip').forEach(el => el.classList.toggle('active', el.dataset.tag === f.tag));
   $('image-filter').setAttribute('aria-pressed', String(f.images));
+  const mobileMonth = $('mobile-month');
+  if (mobileMonth) mobileMonth.value = f.month;
   $('sort-button').textContent = state.ascending ? '最早在前 ↑' : '最新在前 ↓';
   renderCalendar();
 }
@@ -563,8 +589,11 @@ function applyTheme(id) {
 }
 
 (function initThemePicker() {
-  let saved = 'sage';
-  try { saved = localStorage.getItem('journal-theme') || 'sage'; } catch { }
+  let saved = null;
+  try { saved = localStorage.getItem('journal-theme'); } catch { }
+  if (!saved) {
+    saved = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'night' : 'sage';
+  }
   const options = $('theme-options');
   for (const theme of THEMES) {
     const el = button('', 'theme-option', () => applyTheme(theme.id));
