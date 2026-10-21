@@ -231,8 +231,8 @@ function renderCard(note) {
   const main = node('div', undefined, 'card-main');
   const meta = node('div', undefined, 'entry-meta');
   const source = node('span');
-  source.append(node('i', undefined, 'meta-dot'), document.createTextNode(`${note.type === 'collection' ? '沉淀' : note.source || '随想'} · ${note.id}`));
-  meta.append(source);
+  source.append(node('i', undefined, 'meta-dot'), document.createTextNode(note.type === 'collection' ? '沉淀' : note.source || '随想'));
+  meta.append(source, node('span', note.id));
 
   const title = node('h3');
   title.append(button(note.title, 'card-title', () => openNote(note.anchor)));
@@ -438,7 +438,7 @@ function openNote(anchor) {
   $('reader-date').textContent = dateLabel(note);
   $('reader-id').textContent = `${note.id} · ${note.type === 'collection' ? '沉淀专题' : note.source || '随笔'}`;
   $('reader-title').textContent = note.title;
-  $('reader-tags').replaceChildren(...note.tags.map(t => node('span', '# ' + t)));
+  $('reader-tags').replaceChildren(...note.tags.map(t => node('span', t)));
   $('reader-body').replaceChildren(markdown(note.body));
   $('reader-attachments').replaceChildren();
 
