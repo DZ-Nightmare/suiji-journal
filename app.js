@@ -648,6 +648,10 @@ function applyTheme(id) {
   if (meta) meta.content = theme.swatch[0];
   try { localStorage.setItem('journal-theme', theme.id); } catch { }
   document.querySelectorAll('.theme-option').forEach(el => el.classList.toggle('active', el.dataset.theme === theme.id));
+  // 让已打开的附件预览（同源 iframe）实时跟随主题
+  document.querySelectorAll('.attachment-frame, #overlay-frame').forEach(fr => {
+    try { fr.contentWindow.__suijiSyncTheme?.(); } catch { }
+  });
 }
 
 (function initThemePicker() {

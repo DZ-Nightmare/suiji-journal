@@ -35,23 +35,27 @@
     const params = new URLSearchParams(location.search);
     const fileName = params.get('name') || '附件';
     const bare = params.get('bare') === '1';
-    // 从父页面拷贝主题变量（同源），让顶栏跟随皮肤
-    try {
-      const rootStyle = parent.document.documentElement.style;
-      for (const v of ['--soft','--line','--body','--surface','--bg','--ink','--muted','--accent']) {
-        const val = rootStyle.getPropertyValue(v);
-        if (val) document.documentElement.style.setProperty('--suiji' + v, val);
-      }
-      const barEl = document.querySelector('.bar');
-      if (barEl) {
-        const bodyColor = rootStyle.getPropertyValue('--body') || rootStyle.getPropertyValue('--suiji-body');
-        if (bodyColor) barEl.style.color = bodyColor;
-      }
-      {
-      }
-    } catch (e) {}
-    const nameEl = document.getElementById('name');
-    if (bare) document.querySelector('.bar').remove();
+    // 从父页面拷贝主题变量（同源）。注意：主题变量在 CSS 规则里，
+    // 必须用 getComputedStyle 读取（.style 只能读到内联样式）
+    function syncTheme() {
+      try {
+        const cs = getComputedStyle(parent.document.documentElement);
+        const val = n => cs.getPropertyValue(n).trim();
+        const soft = val('--soft'), line = val('--line'), body = val('--body');
+        if (soft) document.documentElement.style.setProperty('--suiji-soft', soft);
+        if (line) document.documentElement.style.setProperty('--suiji-line', line);
+        if (body) document.documentElement.style.setProperty('--suiji-body', body);
+        const barEl = document.querySelector('.bar');
+        if (barEl) {
+          if (soft) barEl.style.background = soft;
+          if (line) barEl.style.borderBottomColor = line;
+          if (body) barEl.style.color = body;
+        }
+      } catch (e) {}
+    }
+    window.__suijiSyncTheme = syncTheme;  // 主站切主题时调用
+    syncTheme();
+        if (bare) document.querySelector('.bar').remove();
     else nameEl.textContent = fileName;
 
     if (!/^blob:/.test(source)) { loading.textContent = '链接无效。'; throw new Error('bad source'); }
