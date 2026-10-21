@@ -50,6 +50,11 @@ function main() {
   let html = fs.readFileSync(indexFile, 'utf8');
   html = html.replace(/(styles\.css|app\.js|icon\.svg)(\?v=\d+)?/g, `$1?v=${stamp}`);
   fs.writeFileSync(indexFile, html);
+  // app.js 内对 viewer.html 的引用也带版本号（防止手机缓存旧版 viewer）
+  const appFile = path.join(lib.ROOT, 'app.js');
+  let js = fs.readFileSync(appFile, 'utf8');
+  js = js.replace(/const VIEWER_VER = '[^']*';/, `const VIEWER_VER = '${stamp}';`);
+  fs.writeFileSync(appFile, js);
 
   const days = new Set(finalNotes.map(n => n.date)).size;
   console.log(`✓ 已加密 ${finalNotes.length} 篇随记（${days} 个记录日）→ journal.enc.json`);
