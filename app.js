@@ -386,7 +386,7 @@ async function showImage(attachment) {
 /* ---------- 附件全屏浮层 ---------- */
 function openAttachmentOverlay(attachment, url) {
   $('overlay-name').textContent = attachment.name;
-  $('overlay-frame').src = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
+  $('overlay-frame').src = `viewer.html?name=${encodeURIComponent(attachment.name)}&bare=1#${encodeURIComponent(url)}`;
   const overlay = $('attachment-overlay');
   if (!overlay.open) overlay.showModal();
   $('overlay-close').focus();

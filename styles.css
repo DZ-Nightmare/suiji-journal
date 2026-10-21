@@ -479,7 +479,9 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
   border: 0; border-radius: 14px; padding: 0; background: var(--surface);
   width: 80vw; height: 80vh; max-width: 80vw; max-height: 80vh;
   box-shadow: 0 30px 90px rgba(0, 0, 0, .35); overflow: hidden;
+  display: flex; flex-direction: column;
 }
+.attachment-overlay:not([open]) { display: none; }
 .attachment-overlay::backdrop { background: var(--overlay); }
 .overlay-bar {
   display: flex; align-items: center; gap: 12px; padding: 11px 16px;
@@ -495,7 +497,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
   font-size: 17px; line-height: 1; flex: none;
 }
 .overlay-close:hover { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-#overlay-frame { display: block; width: 100%; height: calc(100% - 54px); border: 0; background: #fff; }
+#overlay-frame { display: block; flex: 1; width: 100%; border: 0; background: #fff; }
 .attachment-open {
   display: inline-block; background: var(--accent); color: var(--on-accent);
   padding: 9px 16px; border-radius: 8px; font-size: 12px;

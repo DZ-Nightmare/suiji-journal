@@ -32,9 +32,14 @@
     const frame = document.getElementById('frame');
     const loading = document.getElementById('loading');
     const source = decodeURIComponent(location.hash.slice(1));
-    const fileName = new URLSearchParams(location.search).get('name') || '附件';
+    const params = new URLSearchParams(location.search);
+    const fileName = params.get('name') || '附件';
+    const bare = params.get('bare') === '1';
+    const nameEl = document.getElementById('name');
+    const dlEl = document.getElementById('download');
+    if (bare) document.querySelector('.bar').remove();
+    else { nameEl.textContent = fileName; dlEl.href = source; dlEl.download = fileName; }
 
-    document.getElementById('name').textContent = fileName;
     if (!/^blob:/.test(source)) { loading.textContent = '链接无效。'; throw new Error('bad source'); }
 
     fetch(source)
@@ -49,8 +54,6 @@
         frame.src = url;
         frame.hidden = false;
         loading.remove();
-        document.getElementById('download').href = source;
-        document.getElementById('download').download = fileName;
       })
       .catch(() => { loading.textContent = '附件加载失败，请返回重试。'; });
   </script>
