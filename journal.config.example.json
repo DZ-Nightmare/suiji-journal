@@ -1,0 +1,5 @@
+{
+  "password": "在这里填你的查看密码",
+  "vault": "vault",
+  "github": { "repo": "你的用户名/仓库名", "branch": "main" }
+}

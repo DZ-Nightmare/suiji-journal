@@ -1,0 +1,5 @@
+# 明文与本机密钥永不入库
+vault/
+journal.config.json
+node_modules/
+.DS_Store
