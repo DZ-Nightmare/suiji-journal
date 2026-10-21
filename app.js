@@ -70,6 +70,7 @@ async function unlock(event) {
     const payload = JSON.parse(decoder.decode(plain));
     if (!Array.isArray(payload.notes)) throw new Error('随记文件格式有误。');
     state.key = key;
+    offerPasswordSave(password);
     state.notes = payload.notes;
     state.session++;
     state.lastActive = Date.now();
@@ -96,6 +97,30 @@ async function unlock(event) {
     submit.replaceChildren(document.createTextNode('打开我的随记 '), node('span', '↗'));
   }
 }
+
+/* ---------- 浏览器密码管理器（Edge/Chrome）----------
+   表单是纯前端解锁、从不真正提交，密码管理器识别不到登录行为；
+   用 Credential Management API 主动保存，并支持静默自动填充。 */
+function offerPasswordSave(password) {
+  try {
+    if (typeof PasswordCredential === 'undefined' || !navigator.credentials?.store) return;
+    const cred = new PasswordCredential({ id: '随记', name: '随记 · 查看密码', password });
+    navigator.credentials.store(cred).catch(() => { });
+  } catch { }
+}
+
+async function prefillFromPasswordManager() {
+  try {
+    if (typeof PasswordCredential === 'undefined' || !navigator.credentials?.get) return;
+    // silent：只在用户开了「自动登录」时静默填入，绝不弹窗打扰
+    const cred = await navigator.credentials.get({ password: true, mediation: 'silent' });
+    if (cred?.password && !$('password').value) {
+      $('password').value = cred.password;
+      $('unlock-message').textContent = '已从浏览器密码管理器填入，点「打开我的随记」即可。';
+    }
+  } catch { }
+}
+prefillFromPasswordManager();
 
 function lockJournal() {
   state.session++;
