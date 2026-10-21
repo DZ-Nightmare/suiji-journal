@@ -575,11 +575,49 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 
 /* ---------- 移动端专属控件（≤900px 显示） ---------- */
 .mobile-month, .mobile-revisit { display: none; }
+
+/* 手机端底部选择面板（月份筛选） */
+body.sheet-open { overflow: hidden; }
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 95; background: var(--overlay);
+  display: flex; align-items: flex-end;
+}
+.sheet {
+  width: 100%; background: var(--surface); border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  box-shadow: var(--shadow); max-height: 72svh; overflow: auto;
+  animation: sheet-up .18s ease;
+}
+@keyframes sheet-up { from { transform: translateY(18px); opacity: .5; } to { transform: none; opacity: 1; } }
+.sheet-title {
+  font-size: 11px; letter-spacing: 2.5px; color: var(--muted);
+  text-align: center; margin-bottom: 12px;
+}
+.sheet-list { display: flex; flex-direction: column; gap: 4px; }
+.sheet-option {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 48px; padding: 10px 14px; border-radius: 12px;
+  font-size: 15px; color: var(--body); text-align: left;
+}
+.sheet-option:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.sheet-option.active { background: var(--soft); color: var(--accent-dark); font-weight: 600; }
+.sheet-count {
+  margin-left: auto; color: var(--muted); font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sheet-check { visibility: hidden; color: var(--accent); margin-left: 6px; }
+.sheet-option.active .sheet-check { visibility: visible; }
+.sheet-done {
+  width: 100%; margin-top: 14px; min-height: 46px; border-radius: 12px;
+  background: var(--accent); color: var(--on-accent); font-size: 14px; letter-spacing: 2px;
+}
+.sheet-done:hover { background: var(--accent-dark); color: var(--on-accent); }
 .mobile-month {
   border: 1px solid var(--line); background: var(--surface); color: var(--body);
-  border-radius: 8px; padding: 9px 10px; font-size: 12px; max-width: 128px;
-  min-height: 40px;
+  border-radius: 999px; padding: 8px 16px; font-size: 12px; min-height: 40px;
+  align-items: center; gap: 6px; letter-spacing: .5px;
 }
+.mobile-month:hover { border-color: var(--accent); color: var(--accent-dark); }
 .mobile-revisit {
   border: 1px solid var(--line); background: var(--surface); color: var(--accent-dark);
   border-radius: 999px; padding: 11px 18px; font-size: 12px; margin-top: 18px;

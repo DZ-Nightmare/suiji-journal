@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1792575230538';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1792575461317';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -193,28 +193,48 @@ function populate() {
   $('random-note').disabled = !state.notes.length;
   $('revisit-button').disabled = !state.notes.length;
 
-  // 手机端：侧栏隐藏后提供月份下拉与「偶遇旧念头」入口
+  // 手机端：侧栏隐藏后提供月份选择与「偶遇旧念头」入口
   if (!$('mobile-month')) {
-    const select = node('select', undefined, 'mobile-month');
-    select.id = 'mobile-month';
-    select.setAttribute('aria-label', '按月份筛选随记');
-    select.addEventListener('change', () => {
-      state.filter.month = select.value;
-      state.filter.day = '';
-      state.calendar = select.value || state.calendar;
-      render();
-    });
-    $('sort-button').before(select);
+    const btn = button('全部月份', 'mobile-month', openMonthSheet);
+    btn.id = 'mobile-month';
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.setAttribute('aria-label', '按月份筛选随记');
+    $('sort-button').before(btn);
+
+    const backdrop = node('div', undefined, 'sheet-backdrop');
+    backdrop.id = 'month-sheet';
+    backdrop.hidden = true;
+    const sheet = node('div', undefined, 'sheet');
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', '按月份筛选随记');
+    sheet.append(node('p', '按月份回看', 'sheet-title'), node('div', undefined, 'sheet-list'),
+      button('完成', 'sheet-done', closeMonthSheet));
+    backdrop.append(sheet);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeMonthSheet(); });
+    document.body.append(backdrop);
+
     const revisit = button('✧ 偶遇一条旧念头 ↗', 'mobile-revisit', randomNote);
     revisit.id = 'mobile-revisit';
     document.querySelector('.hero-meta').after(revisit);
   }
-  const allMonth = node('option', '全部月份');
-  allMonth.value = '';
-  $('mobile-month').replaceChildren(allMonth, ...months.map(month => {
-    const option = node('option', `${month.slice(0, 4)}.${month.slice(5, 7)}`);
-    option.value = month;
-    return option;
+  const monthList = [{ value: '', label: '全部月份', count: state.notes.length },
+    ...months.map(m => ({
+      value: m, label: `${m.slice(0, 4)}.${m.slice(5, 7)}`,
+      count: state.notes.filter(n => n.date.startsWith(m)).length,
+    }))];
+  const listEl = document.querySelector('#month-sheet .sheet-list');
+  listEl.replaceChildren(...monthList.map(item => {
+    const opt = button('', 'sheet-option', () => {
+      state.filter.month = item.value;
+      state.filter.day = '';
+      if (item.value) state.calendar = item.value;
+      closeMonthSheet();
+      render();
+    });
+    opt.dataset.month = item.value;
+    opt.classList.toggle('active', state.filter.month === item.value);
+    opt.append(node('span', item.label), node('span', String(item.count), 'sheet-count'), node('span', '✓', 'sheet-check'));
+    return opt;
   }));
 }
 
@@ -273,7 +293,10 @@ function render() {
   document.querySelectorAll('.filter-chip').forEach(el => el.classList.toggle('active', el.dataset.tag === f.tag));
   $('image-filter').setAttribute('aria-pressed', String(f.images));
   const mobileMonth = $('mobile-month');
-  if (mobileMonth) mobileMonth.value = f.month;
+  if (mobileMonth) {
+    mobileMonth.textContent = (f.month ? `${f.month.slice(0, 4)}.${f.month.slice(5, 7)}` : '全部月份') + ' ▾';
+    document.querySelectorAll('#month-sheet .sheet-option').forEach(el => el.classList.toggle('active', el.dataset.month === f.month));
+  }
   $('sort-button').textContent = state.ascending ? '最早在前 ↑' : '最新在前 ↓';
   renderCalendar();
 }
@@ -596,6 +619,15 @@ function openNote(anchor) {
   if (!$('reader').open) $('reader').showModal();
   $('reader').scrollTop = 0;
   history.replaceState(null, '', `#${anchor}`);
+}
+
+function openMonthSheet() {
+  $('month-sheet').hidden = false;
+  document.body.classList.add('sheet-open');
+}
+function closeMonthSheet() {
+  const sheet = $('month-sheet');
+  if (sheet) { sheet.hidden = true; document.body.classList.remove('sheet-open'); }
 }
 
 function randomNote() {
