@@ -209,6 +209,7 @@ function mimeOf(name) {
     '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.wav': 'audio/wav', '.aac': 'audio/aac',
     '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm',
     '.pdf': 'application/pdf', '.txt': 'text/plain', '.md': 'text/markdown',
+    '.html': 'text/html', '.htm': 'text/html', '.csv': 'text/csv', '.json': 'application/json',
   })[ext] || 'application/octet-stream';
 }
 

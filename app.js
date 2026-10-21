@@ -352,7 +352,9 @@ async function loadMedia(attachment) {
   const session = state.session;
   const key = state.key;
   const pending = (async () => {
-    const response = await fetch(attachment.file);
+    // cache:'no-store'：每次构建会用新 salt 重新加密附件，同名文件内容已变，
+    // 用缓存的旧密文配新密钥会解密失败
+    const response = await fetch(attachment.file, { cache: 'no-store' });
     if (!response.ok) throw new Error('附件读取失败');
     const data = new Uint8Array(await response.arrayBuffer());
     if (session !== state.session || !key) throw new Error('随记已锁定');
@@ -482,6 +484,8 @@ function openNote(anchor) {
     const figure = node('figure');
     figure.append(node('figcaption', attachment.name));
     $('reader-attachments').append(figure);
+    const isHtml = /text\/html/.test(attachment.mime) || /\.html?$/i.test(attachment.name);
+    const isText = /^(text\/plain|text\/markdown)$/.test(attachment.mime);
     loadMedia(attachment)
       .then(url => {
         if (state.currentAnchor !== anchor || !figure.isConnected || !state.key) return;
@@ -497,6 +501,36 @@ function openNote(anchor) {
           media.controls = true;
           media.preload = 'metadata';
           figure.prepend(media);
+        } else if (isHtml) {
+          // HTML 附件：页内沙箱预览 + 新标签打开 + 下载
+          const wrap = node('div', undefined, 'attachment-web');
+          const preview = node('iframe', undefined, 'attachment-frame');
+          // 外层只承载自带的 viewer.html（可信）；附件内容在 viewer 内部的沙箱 iframe 里运行
+          preview.title = `${attachment.name} 预览`;
+          preview.src = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
+          const actions = node('div', undefined, 'attachment-actions');
+          const open = node('a', '在新标签中打开 ↗', 'attachment-open');
+          open.href = `viewer.html?name=${encodeURIComponent(attachment.name)}#${encodeURIComponent(url)}`;
+          open.target = '_blank';
+          open.rel = 'noreferrer noopener';
+          const dl = node('a', '下载 ↓', 'attachment-download');
+          dl.href = url;
+          dl.download = attachment.name;
+          actions.append(open, dl);
+          wrap.append(preview, actions);
+          figure.prepend(wrap);
+        } else if (isText) {
+          const box = node('details', undefined, 'attachment-text');
+          box.append(node('summary', '展开文本内容'));
+          const pre = node('pre');
+          pre.textContent = '';
+          box.append(pre);
+          figure.prepend(box);
+          fetch(url).then(r => r.text()).then(t => { pre.textContent = t.slice(0, 20000); }).catch(() => {});
+          const dl = node('a', '下载 ↓', 'attachment-download');
+          dl.href = url;
+          dl.download = attachment.name;
+          figure.append(dl);
         } else {
           const link = node('a', '下载附件 ↓', 'attachment-download');
           link.href = url;
@@ -504,7 +538,15 @@ function openNote(anchor) {
           figure.prepend(link);
         }
       })
-      .catch(() => { if (figure.isConnected && state.key) figure.prepend(node('p', '附件暂时无法加载。')); });
+      .catch(() => {
+        if (!figure.isConnected || !state.key) return;
+        const retry = button('附件加载失败，点此重试', 'attachment-download', () => {
+          state.media.delete(attachment.file);
+          figure.replaceChildren(node('figcaption', attachment.name));
+          openNote(anchor);
+        });
+        figure.prepend(retry);
+      });
   }
   if (!$('reader').open) $('reader').showModal();
   $('reader').scrollTop = 0;

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <!-- 附件查看器：为运行 HTML 附件（如离线小工具）放宽脚本限制，
+       但内容永远被限制在沙箱 iframe 的独立源里，碰不到随记主站 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob: data:; frame-src blob:; connect-src blob: data:; base-uri 'none'; form-action 'none'">
+  <title>随记 · 附件预览</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #fff; }
+    .bar {
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+      background: #f7f8f2; border-bottom: 1px solid #dce1d4; font-size: 12px; color: #475148;
+    }
+    .bar b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar a { margin-left: auto; color: #416647; text-decoration: none; border: 1px solid #dce1d4; border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
+    .bar a:hover { border-color: #416647; }
+    iframe { border: 0; width: 100%; flex: 1; background: #fff; }
+    .loading { padding: 30px; color: #70786e; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="bar"><b id="name">附件预览</b><a id="download" href="#">下载 ↓</a></div>
+  <div class="loading" id="loading">正在解密并加载附件…</div>
+  <iframe id="frame" sandbox="allow-scripts allow-modals allow-forms allow-popups" hidden title="附件内容"></iframe>
+  <script>
+    'use strict';
+    const frame = document.getElementById('frame');
+    const loading = document.getElementById('loading');
+    const source = decodeURIComponent(location.hash.slice(1));
+    const fileName = new URLSearchParams(location.search).get('name') || '附件';
+
+    document.getElementById('name').textContent = fileName;
+    if (!/^blob:/.test(source)) { loading.textContent = '链接无效。'; throw new Error('bad source'); }
+
+    fetch(source)
+      .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.text(); })
+      .then(html => {
+        // 沙箱 iframe 是独立源，给附件补一个内存版 localStorage，
+        // 让「数据存在本地」的小工具（如话术手册的收藏功能）正常工作
+        const shim = '<script>(function(){try{var s={};var fake={getItem:function(k){return k in s?s[k]:null},setItem:function(k,v){s[k]=String(v)},removeItem:function(k){delete s[k]},clear:function(){s={}},key:function(i){return Object.keys(s)[i]||null},get length(){return Object.keys(s).length}};Object.defineProperty(window,"localStorage",{value:fake});Object.defineProperty(window,"sessionStorage",{value:fake});}catch(e){}})();<\/script>';
+        // 重新打包：由本页创建的 blob 继承本页 CSP（允许附件内联脚本），再放入沙箱运行
+        const blob = new Blob([shim + html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        frame.src = url;
+        frame.hidden = false;
+        loading.remove();
+        document.getElementById('download').href = source;
+        document.getElementById('download').download = fileName;
+      })
+      .catch(() => { loading.textContent = '附件加载失败，请返回重试。'; });
+  </script>
+</body>
+</html>
