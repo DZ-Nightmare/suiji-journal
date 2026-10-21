@@ -369,12 +369,13 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 .rail-heading button:disabled { opacity: .3; }
 .weekdays {
   margin-top: 20px; margin-bottom: 13px; color: var(--muted);
-  display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 9px;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 9px;
 }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 10px; gap: 5px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 10px; gap: 5px; }
 .calendar-grid span, .calendar-grid button {
   display: flex; align-items: center; justify-content: center;
   aspect-ratio: 1; border-radius: 50%; color: var(--body);
+  padding: 0; min-width: 0;  /* 清掉按钮 UA 内边距，防止 7 列最小宽度撑爆面板 */
 }
 .calendar-grid span { color: color-mix(in srgb, var(--body) 38%, transparent); }
 .calendar-grid button.has-note { background: var(--soft); color: var(--accent-dark); font-weight: 600; }
