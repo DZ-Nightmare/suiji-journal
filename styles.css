@@ -115,12 +115,15 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 .book-wrap {
   position: relative; justify-self: center;
   height: 430px; max-width: 320px; width: 100%; perspective: 1600px;
+  transition: transform 1s cubic-bezier(.45, 0, .18, 1);
 }
 .book-page {
   position: absolute; inset: 0; transform: rotate(-7deg);
   border-radius: 5px 17px 17px 5px;
-  background: linear-gradient(165deg, var(--surface), color-mix(in srgb, var(--soft) 60%, var(--surface)));
-  box-shadow: 6px 10px 0 color-mix(in srgb, var(--accent) 10%, transparent), 14px 28px 55px var(--shadow);
+  background:
+    linear-gradient(to right, rgba(0, 0, 0, .12), transparent 12%),  /* 书沟侧渐深 */
+    linear-gradient(165deg, var(--surface), color-mix(in srgb, var(--soft) 60%, var(--surface)));
+  box-shadow: 0 22px 48px var(--shadow);
   padding: 44px 36px 30px 54px; overflow: hidden;
 }
 /* 装订线 + 右侧页缘，像一本翻开的笔记本 */
@@ -165,20 +168,34 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
   color: var(--on-accent); padding: 50px 40px 35px 48px; display: flex; flex-direction: column;
 }
 .book-face-back {
-  transform: rotateY(180deg);
-  background: linear-gradient(155deg,
-    color-mix(in srgb, var(--accent) 70%, var(--ink)),
-    color-mix(in srgb, var(--accent) 86%, var(--ink)));
-  box-shadow: 14px 28px 55px var(--shadow);
+  transform: rotateY(180deg) translateZ(1px);
+  background:
+    linear-gradient(to left, rgba(0, 0, 0, .22), transparent 16%),  /* 书沟侧渐深 */
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--accent) 72%, var(--ink)),
+      color-mix(in srgb, var(--accent) 84%, var(--ink)));
+  box-shadow: 0 22px 48px var(--shadow);
 }
-.book-face-back::after {
-  content: "✳"; position: absolute; inset: 0; display: flex;
-  align-items: center; justify-content: center;
-  font-family: var(--serif); font-size: 38px;
-  color: color-mix(in srgb, var(--on-accent) 32%, transparent);
+/* 内衬双线框：像精装书的藏书票页 */
+.book-face-back::before {
+  content: ""; position: absolute; inset: 15px;
+  border: 1px solid color-mix(in srgb, var(--on-accent) 16%, transparent);
+  border-radius: 3px 12px 12px 3px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--on-accent) 5%, transparent);
 }
-/* 解锁成功：封面绕书脊翻开，像一本摊开的书 */
-body.book-opening .book-art { transform: rotate(-7deg) rotateY(-155deg); }
+.endpaper {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  color: color-mix(in srgb, var(--on-accent) 42%, transparent);
+}
+.endpaper-star { font-family: var(--serif); font-size: 34px; line-height: 1; }
+.endpaper p { font-family: var(--serif); font-size: 17px; letter-spacing: 10px; margin: 0; padding-left: 10px; }
+.endpaper i { display: block; width: 34px; height: 1px; background: currentColor; opacity: .5; }
+.endpaper small { font-size: 8px; letter-spacing: 3px; }
+/* 解锁成功：封面完全摊平（179°），与内页对称成一本书 */
+body.book-opening .book-art { transform: rotate(-7deg) rotateY(-179deg); }
+/* 舞台随翻开右移并缩小：摊开的跨页保持在画面中心 */
+body.book-opening .book-wrap { transform: translateX(150px) scale(.82); }
 body.book-opening .book-page i { animation: page-glow 1s ease both; }
 @keyframes page-glow {
   from { opacity: .45; }
