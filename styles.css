@@ -152,17 +152,33 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 .page-foot span { color: var(--accent); margin-right: 8px; font-size: 12px; }
 .book-art {
   position: absolute; inset: 0; transform: rotate(-7deg); transform-style: preserve-3d;
-  transform-origin: left center; backface-visibility: hidden;
+  transform-origin: left center;
   transition: transform .9s cubic-bezier(.45, 0, .18, 1);
-  background: var(--accent); border-radius: 5px 17px 17px 5px;
-  box-shadow: 8px 12px 0 var(--soft), 14px 28px 55px var(--shadow);
+}
+/* 双面封面：正面=封面，背面=封面内侧衬页（翻过去依然可见，书不会"消失"） */
+.book-face {
+  position: absolute; inset: 0; border-radius: 5px 17px 17px 5px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.book-face-front {
+  background: var(--accent); box-shadow: 8px 12px 0 var(--soft), 14px 28px 55px var(--shadow);
   color: var(--on-accent); padding: 50px 40px 35px 48px; display: flex; flex-direction: column;
 }
-/* 解锁成功：封面绕书脊翻开，露出内页 */
-body.book-opening .book-art {
-  transform: rotate(-7deg) rotateY(-158deg);
-  box-shadow: -18px 12px 40px var(--shadow);
+.book-face-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(155deg,
+    color-mix(in srgb, var(--accent) 70%, var(--ink)),
+    color-mix(in srgb, var(--accent) 86%, var(--ink)));
+  box-shadow: 14px 28px 55px var(--shadow);
 }
+.book-face-back::after {
+  content: "✳"; position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: 38px;
+  color: color-mix(in srgb, var(--on-accent) 32%, transparent);
+}
+/* 解锁成功：封面绕书脊翻开，像一本摊开的书 */
+body.book-opening .book-art { transform: rotate(-7deg) rotateY(-155deg); }
 body.book-opening .book-page i { animation: page-glow 1s ease both; }
 @keyframes page-glow {
   from { opacity: .45; }
@@ -175,17 +191,17 @@ body.book-opening .book-page i { animation: page-glow 1s ease both; }
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
 }
-.book-art::after {
+.book-face-front::after {
   content: ""; position: absolute; right: 20px; top: -6px;
   height: 453px; width: 5px; background: var(--ink); opacity: .5;
 }
 .book-spine { position: absolute; left: 17px; top: 0; bottom: 0; border-left: 1px solid rgba(255, 255, 255, .22); }
-.book-art > span { font-family: var(--serif); font-size: 42px; letter-spacing: 14px; }
-.book-art > i {
+.book-face-front > span { font-family: var(--serif); font-size: 42px; letter-spacing: 14px; }
+.book-face-front > i {
   font-family: var(--serif); font-size: 16px; font-style: normal;
   line-height: 2; letter-spacing: 3px; margin-top: 37px;
 }
-.book-art > b {
+.book-face-front > b {
   font-family: var(--serif); font-size: 62px; font-weight: 400;
   align-self: flex-end; margin-top: auto;
 }
