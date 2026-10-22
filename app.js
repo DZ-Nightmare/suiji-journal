@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1792645380412';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1792647858634';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -667,6 +667,13 @@ function downloadNote() {
 }
 
 /* ---------- 事件绑定 ---------- */
+// 翻开的内页日期：跟随今天
+try {
+  const pd = $('page-date');
+  const d = new Date();
+  if (pd) pd.textContent = `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+} catch { }
+
 $('unlock-form').addEventListener('submit', unlock);
 $('show-password').addEventListener('click', () => {
   const show = $('password').type === 'password';

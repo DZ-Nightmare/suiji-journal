@@ -119,14 +119,37 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
 .book-page {
   position: absolute; inset: 0; transform: rotate(-7deg);
   border-radius: 5px 17px 17px 5px;
-  background: linear-gradient(160deg, var(--surface), var(--soft));
-  box-shadow: 8px 12px 0 color-mix(in srgb, var(--accent) 12%, transparent), 14px 28px 55px var(--shadow);
-  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: linear-gradient(165deg, var(--surface), color-mix(in srgb, var(--soft) 60%, var(--surface)));
+  box-shadow: 6px 10px 0 color-mix(in srgb, var(--accent) 10%, transparent), 14px 28px 55px var(--shadow);
+  padding: 44px 36px 30px 54px; overflow: hidden;
 }
-.book-page i {
-  font-style: normal; font-family: var(--serif); font-size: 21px;
-  line-height: 2.2; letter-spacing: 4px; color: var(--ink);
+/* 装订线 + 右侧页缘，像一本翻开的笔记本 */
+.book-page::before {
+  content: ""; position: absolute; left: 24px; top: 10px; bottom: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
 }
+.book-page::after {
+  content: ""; position: absolute; right: 5px; top: 10px; bottom: 10px; width: 4px;
+  background: repeating-linear-gradient(to right,
+    color-mix(in srgb, var(--accent) 12%, transparent) 0 1px, transparent 1px 3px);
+}
+.page-inner { height: 100%; display: flex; flex-direction: column; }
+.page-date {
+  font-family: var(--serif); font-size: 11.5px; letter-spacing: 3px;
+  color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 12px;
+}
+.page-head {
+  font-family: var(--serif); font-size: 15px; letter-spacing: 7px;
+  color: var(--accent-dark); margin-top: 20px;
+}
+.page-line {
+  height: 12px; margin-top: 10px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.page-foot {
+  margin-top: auto; text-align: center; font-size: 10px; letter-spacing: 3px; color: var(--muted);
+}
+.page-foot span { color: var(--accent); margin-right: 8px; font-size: 12px; }
 .book-art {
   position: absolute; inset: 0; transform: rotate(-7deg); transform-style: preserve-3d;
   transform-origin: left center; backface-visibility: hidden;
@@ -142,8 +165,8 @@ body.book-opening .book-art {
 }
 body.book-opening .book-page i { animation: page-glow 1s ease both; }
 @keyframes page-glow {
-  from { opacity: .25; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: .45; }
+  to { opacity: 1; }
 }
 /* 视图切换：锁屏淡出、随记淡入 */
 .lock-screen.leaving { opacity: 0; transform: scale(1.035); transition: opacity .42s ease, transform .42s ease; }
