@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1792575816462';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1792645380412';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -82,14 +82,11 @@ async function unlock(event) {
     $('password').type = 'password';
     $('show-password').textContent = '显示';
     $('unlock-message').textContent = '内容与附件均已加密，仅在当前浏览器解锁。';
-    $('lock-screen').hidden = true;
-    $('journal').hidden = false;
     $('updated-at').textContent = payload.built_at
       ? `页面更新于 ${payload.built_at.slice(0, 16).replace('T', ' ')}（北京时间）` : '';
     populate();
     resetFilters();
-    if (location.hash.startsWith('#card-')) openNote(location.hash.slice(1));
-    window.scrollTo(0, 0);
+    revealJournal();
   } catch (error) {
     $('unlock-message').textContent = error.message || '打开失败，请重试。';
     $('unlock-message').classList.add('error');
@@ -123,6 +120,27 @@ async function prefillFromPasswordManager() {
 }
 prefillFromPasswordManager();
 
+function revealJournal() {
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const finish = () => {
+    $('lock-screen').hidden = true;
+    $('lock-screen').classList.remove('leaving');
+    $('journal').hidden = false;
+    $('journal').classList.add('entering');
+    setTimeout(() => $('journal').classList.remove('entering'), 700);
+    document.body.classList.remove('book-opening');
+    if (location.hash.startsWith('#card-')) openNote(location.hash.slice(1));
+    window.scrollTo(0, 0);
+  };
+  if (reduce || !document.querySelector('.book-art')) { finish(); return; }
+  // 封面翻开（.9s）→ 锁屏淡出（.4s）→ 随记登场
+  document.body.classList.add('book-opening');
+  setTimeout(() => {
+    $('lock-screen').classList.add('leaving');
+    setTimeout(finish, 400);
+  }, 780);
+}
+
 function lockJournal() {
   state.session++;
   state.key = null;
@@ -140,6 +158,9 @@ function lockJournal() {
   $('password').value = '';
   $('journal').hidden = true;
   $('lock-screen').hidden = false;
+  $('lock-screen').classList.remove('leaving');
+  $('journal').classList.remove('entering');
+  document.body.classList.remove('book-opening');
   $('toast').hidden = true;
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   window.scrollTo(0, 0);

@@ -112,11 +112,45 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
   display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 100px;
   max-width: 900px; width: 100%; align-self: center; padding: 62px 0 85px;
 }
+.book-wrap {
+  position: relative; justify-self: center;
+  height: 430px; max-width: 320px; width: 100%; perspective: 1600px;
+}
+.book-page {
+  position: absolute; inset: 0; transform: rotate(-7deg);
+  border-radius: 5px 17px 17px 5px;
+  background: linear-gradient(160deg, var(--surface), var(--soft));
+  box-shadow: 8px 12px 0 color-mix(in srgb, var(--accent) 12%, transparent), 14px 28px 55px var(--shadow);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.book-page i {
+  font-style: normal; font-family: var(--serif); font-size: 21px;
+  line-height: 2.2; letter-spacing: 4px; color: var(--ink);
+}
 .book-art {
-  position: relative; transform: rotate(-7deg); height: 430px; max-width: 320px; width: 100%;
-  justify-self: center; background: var(--accent); border-radius: 5px 17px 17px 5px;
+  position: absolute; inset: 0; transform: rotate(-7deg); transform-style: preserve-3d;
+  transform-origin: left center; backface-visibility: hidden;
+  transition: transform .9s cubic-bezier(.45, 0, .18, 1);
+  background: var(--accent); border-radius: 5px 17px 17px 5px;
   box-shadow: 8px 12px 0 var(--soft), 14px 28px 55px var(--shadow);
   color: var(--on-accent); padding: 50px 40px 35px 48px; display: flex; flex-direction: column;
+}
+/* 解锁成功：封面绕书脊翻开，露出内页 */
+body.book-opening .book-art {
+  transform: rotate(-7deg) rotateY(-158deg);
+  box-shadow: -18px 12px 40px var(--shadow);
+}
+body.book-opening .book-page i { animation: page-glow 1s ease both; }
+@keyframes page-glow {
+  from { opacity: .25; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+/* 视图切换：锁屏淡出、随记淡入 */
+.lock-screen.leaving { opacity: 0; transform: scale(1.035); transition: opacity .42s ease, transform .42s ease; }
+.journal-shell.entering { animation: journal-in .55s ease both; }
+@keyframes journal-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
 }
 .book-art::after {
   content: ""; position: absolute; right: 20px; top: -6px;
