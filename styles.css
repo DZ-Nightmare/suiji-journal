@@ -729,9 +729,22 @@ body.sheet-open { overflow: hidden; }
   .search-field { width: auto; flex: 1; }
   .mobile-lock { display: block; min-height: 40px; }
   .mobile-month, .mobile-revisit { display: inline-flex; align-items: center; }
-  .lock-card { grid-template-columns: 1fr; gap: 40px; padding: 30px 0 50px; }
-  .book-art { display: none; }
-  .lock-screen { padding: 28px 22px; padding-top: calc(28px + env(safe-area-inset-top)); }
+  .lock-card { grid-template-columns: 1fr; gap: 0; padding: 10px 0 14px; }
+  .book-art, .book-wrap { display: none; }  /* 书本插画整块隐藏（含翻开内页） */
+  .lock-screen {
+    padding: 18px 22px; padding-top: calc(18px + env(safe-area-inset-top));
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+  /* 锁屏一屏排布：紧凑间距 + 流体标题，任何手机都不需要滚动 */
+  .lock-brand { font-size: 20px; gap: 8px; }
+  .lock-brand .brand-symbol { font-size: 24px; }
+  .lock-copy h1 { font-size: clamp(24px, 7.6vw, 32px); line-height: 1.5; margin: 10px 0 10px; letter-spacing: 1px; }
+  .lock-copy .intro { margin: 0; font-size: 12.5px; }
+  .lock-copy label { margin: 16px 0 7px; }
+  .password-field input { padding: 12px 16px; font-size: 15px; }
+  .primary-button { margin-top: 10px; padding: 13px 18px; }
+  .form-message { min-height: 0; margin-top: 8px; font-size: 10.5px; }
+  .lock-footer { font-size: 10px; }
   .hero { flex-direction: column; align-items: flex-start; min-height: 0; }
   .hero h1 { font-size: 32px; letter-spacing: 2px; }
   .hero-art { display: none; }

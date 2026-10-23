@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1792662085976';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1792730444691';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -132,7 +132,10 @@ function revealJournal() {
     if (location.hash.startsWith('#card-')) openNote(location.hash.slice(1));
     window.scrollTo(0, 0);
   };
-  if (reduce || !document.querySelector('.book-art')) { finish(); return; }
+  // 书本插画在手机端隐藏：不可见时跳过翻书，直接登场（避免白等）
+  const bookWrap = document.querySelector('.book-wrap');
+  const bookVisible = !!bookWrap && bookWrap.getClientRects().length > 0;
+  if (reduce || !bookVisible) { finish(); return; }
   // 封面翻开（.9s）→ 锁屏淡出（.4s）→ 随记登场
   document.body.classList.add('book-opening');
   setTimeout(() => {
