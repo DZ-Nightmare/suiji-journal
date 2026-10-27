@@ -4,7 +4,7 @@
 仓库里只有密文（`journal.enc.json` + `media/*.bin`），明文随记只存在本机 `vault/`，
 查看密码派生密钥（PBKDF2 60 万次 + AES-256-GCM）只在浏览器内解密。
 
-线上地址：`https://dingze970327-cmyk.github.io/suiji-journal/`
+线上地址：`https://dz-nightmare.github.io/suiji-journal/`
 
 ## 怎么记一条随记（三种方式）
 
@@ -14,13 +14,13 @@
 
 > 记一条随记：<你的素材，可以带图片、文件、聊天记录、链接>
 
-AI 会按「看到 / 听到 / 想到」模板生成随笔，调用工具链加密并自动推送上线（约 1 分钟生效）。
+AI 会按「触点 / 思考 / 关联」模板生成随笔，调用工具链加密并自动推送上线（约 1 分钟生效）。
 沉淀专题说「沉淀一条：<主题>」即可。
 
 ### ② 命令行（AI 已经帮你写好草稿，或从别的工具导出 md 时）
 
 ```bash
-cd "/Users/dingze/Documents/Deepseek Harness/suiji-journal"
+cd "/Users/dingze/Documents/工作目录/AI/项目/suiji-journal"
 node tools/import.js 草稿.md 图片1.webp --date 2026-10-20 --tags 随笔,观影 --source 照片 --push
 ```
 
