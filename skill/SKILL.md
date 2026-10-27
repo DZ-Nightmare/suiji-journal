@@ -19,12 +19,12 @@ description: >
 
 ## 路径与命令
 
-- 项目目录：`/Users/dingze/Documents/Deepseek Harness/suiji-journal`
+- 项目目录：`/Users/dingze/Documents/工作目录/AI/项目/suiji-journal`
 - 查看密码在 `项目目录/journal.config.json`（本机私有文件，**绝不写入 vault、绝不提交、绝不在回答中展示**）。
 - 一切命令在项目目录下执行：
 
 ```bash
-cd "/Users/dingze/Documents/Deepseek Harness/suiji-journal"
+cd "/Users/dingze/Documents/工作目录/AI/项目/suiji-journal"
 
 # 1) 写好随笔 markdown（模板见下）后，连同图片/附件一起导入：
 node tools/import.js --date 2026-10-20 --tags 职场,沟通 草稿.md 图1.webp
