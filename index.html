@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1792730444691" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1792730444691">
-  <link rel="stylesheet" href="styles.css?v=1792730444691">
-  <script src="app.js?v=1792730444691" defer></script>
+  <link rel="icon" href="icon.svg?v=1793255464272" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1793255464272">
+  <link rel="stylesheet" href="styles.css?v=1793255464272">
+  <script src="app.js?v=1793255464272" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#timeline">跳到时间轴</a>
@@ -77,6 +77,7 @@
     <a class="brand" href="#"><span class="brand-symbol" aria-hidden="true">✳</span><span>随记<small>A LITTLE JOURNAL</small></span></a>
     <p class="side-caption">我的小小宇宙</p>
     <button class="nav-item active" id="all-notes"><span aria-hidden="true">◷</span> 全部随记 <b id="nav-count">0</b></button>
+    <button class="nav-item" id="list-nav" hidden><span aria-hidden="true">▤</span> 书影清单 <b id="list-count">0</b></button>
     <button class="nav-item" id="random-note"><span aria-hidden="true">✧</span> 偶遇一条旧念头 <span class="nav-arrow" aria-hidden="true">↗</span></button>
     <div class="side-group"><p class="side-heading">按月份回看</p><div id="month-nav" class="month-nav"></div></div>
     <div class="side-group"><p class="side-heading">念头的去处</p><div id="topic-nav" class="topic-nav"></div></div>
@@ -88,7 +89,7 @@
 
   <div class="workspace">
     <header class="topbar">
-      <div class="breadcrumb">我的随记 <span>/</span> 时间轴</div>
+      <div class="breadcrumb">我的随记 <span>/</span> <span id="breadcrumb-page">时间轴</span></div>
       <label class="search-field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
         <input id="search" type="search" placeholder="找一段话，或一个念头…" aria-label="搜索随记">
@@ -98,6 +99,7 @@
     </header>
 
     <main id="main-content">
+      <div id="view-notes">
       <section class="hero">
         <div>
           <p class="eyebrow">THOUGHTS, GATHERED ALONG THE WAY</p>
@@ -155,6 +157,29 @@
           <div class="origin-note"><span aria-hidden="true">✳</span><p>记录交给当下，<br>沉淀交给时间。</p><small id="updated-at"></small></div>
         </aside>
       </div>
+      </div>
+
+      <!-- 书影视图（想读 / 想看清单） -->
+      <section id="view-lists" hidden aria-label="书影清单">
+        <div class="lists-toolbar">
+          <div class="timeline-title"><h2>书影清单</h2><span id="lists-count-line"></span></div>
+          <button id="lists-sort" class="sort-button" aria-label="切换清单排序">最近添加 ↓</button>
+        </div>
+        <p class="lists-stats" id="lists-stats"></p>
+        <div class="filter-bar">
+          <div id="lists-type-filter" class="filter-tags"></div>
+          <div id="lists-status-filter" class="filter-tags"></div>
+        </div>
+        <div class="filter-bar">
+          <div id="lists-tag-filter" class="filter-tags"></div>
+        </div>
+        <div id="lists-grid" class="lists-grid"></div>
+        <div id="lists-empty" class="empty-state" hidden>
+          <span aria-hidden="true">⌁</span><h3 id="lists-empty-title">清单还空着。</h3>
+          <p id="lists-empty-text">对任意 AI 说一句「想读《…》」或「想看《…》」，第一条就会出现在这里。</p>
+        </div>
+        <div class="timeline-end"><span></span><p>想读的、想看的，都在这里慢慢等。</p></div>
+      </section>
     </main>
 
     <footer class="main-footer"><span>随记 <i>·</i> 一点一滴，都是自己。</span><span id="footer-count"></span></footer>
@@ -168,8 +193,10 @@
     <p class="eyebrow" id="reader-id"></p>
     <h1 id="reader-title"></h1>
     <div id="reader-tags" class="reader-tags"></div>
+    <p class="reader-meta" id="reader-meta" hidden></p>
     <div id="reader-body" class="reader-body"></div>
     <div id="reader-attachments" class="reader-attachments"></div>
+    <div class="reader-links" id="reader-links" hidden></div>
     <button id="download-note" class="text-button">下载这条随记 ↓</button>
   </div>
 </dialog>

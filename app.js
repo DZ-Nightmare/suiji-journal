@@ -2,14 +2,16 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1792730444691';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1793255464272';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
-  key: null, notes: [], media: new Map(), urls: new Set(),
-  session: 0, currentAnchor: null, ascending: false, calendar: '',
+  key: null, notes: [], lists: [], hasLists: false, media: new Map(), urls: new Set(),
+  session: 0, currentAnchor: null, currentDetail: null, detailDepth: 0, view: 'notes',
+  ascending: false, calendar: '', listSort: 'added',
   lastActive: Date.now(),
   filter: { q: '', tag: '', topic: '', month: '', day: '', images: false },
+  listFilter: { type: '', status: '', tag: '' },
 };
 
 function node(tag, text, cls) {
@@ -73,6 +75,9 @@ async function unlock(event) {
     state.key = key;
     offerPasswordSave(password);
     state.notes = payload.notes;
+    // 书影清单：payload.lists 不存在（旧构建数据）时隐藏入口；空数组照常展示
+    state.hasLists = Array.isArray(payload.lists);
+    state.lists = state.hasLists ? payload.lists : [];
     state.session++;
     state.lastActive = Date.now();
     state.calendar = state.notes.length
@@ -129,7 +134,9 @@ function revealJournal() {
     $('journal').classList.add('entering');
     setTimeout(() => $('journal').classList.remove('entering'), 700);
     document.body.classList.remove('book-opening');
-    if (location.hash.startsWith('#card-')) openNote(location.hash.slice(1));
+    const hash = location.hash.slice(1);
+    if (hash.startsWith('card-')) openNote(hash, true);
+    else if (hash.startsWith('list-') && state.hasLists) openList(hash, true);
     window.scrollTo(0, 0);
   };
   // 书本插画在手机端隐藏：不可见时跳过翻书，直接登场（避免白等）
@@ -148,14 +155,20 @@ function lockJournal() {
   state.session++;
   state.key = null;
   state.notes = [];
+  state.lists = [];
   state.currentAnchor = null;
+  state.currentDetail = null;
+  state.detailDepth = 0;
   state.media.clear();
   state.urls.forEach(url => URL.revokeObjectURL(url));
   state.urls.clear();
   ['reader', 'lightbox'].forEach(id => $(id).close());
-  ['timeline', 'month-nav', 'topic-nav', 'filter-tags', 'calendar-grid', 'reader-body', 'reader-attachments', 'reader-tags'].forEach(id => $(id).replaceChildren());
-  ['reader-title', 'reader-id', 'reader-date', 'updated-at', 'start-date', 'calendar-title', 'visible-count', 'footer-count'].forEach(id => { $(id).textContent = ''; });
-  ['total-count', 'day-count', 'nav-count'].forEach(id => { $(id).textContent = '0'; });
+  ['timeline', 'month-nav', 'topic-nav', 'filter-tags', 'calendar-grid', 'reader-body', 'reader-attachments', 'reader-tags', 'reader-links', 'lists-grid', 'lists-type-filter', 'lists-status-filter', 'lists-tag-filter'].forEach(id => $(id).replaceChildren());
+  ['reader-title', 'reader-id', 'reader-date', 'reader-meta', 'updated-at', 'start-date', 'calendar-title', 'visible-count', 'footer-count', 'lists-count-line', 'lists-stats'].forEach(id => { $(id).textContent = ''; });
+  ['total-count', 'day-count', 'nav-count', 'list-count'].forEach(id => { $(id).textContent = '0'; });
+  $('reader-meta').hidden = true;
+  $('reader-links').hidden = true;
+  setView('notes', true);
   $('lightbox-image').removeAttribute('src');
   $('search').value = '';
   $('password').value = '';
@@ -260,6 +273,158 @@ function populate() {
     opt.append(node('span', item.label), node('span', String(item.count), 'sheet-count'), node('span', '✓', 'sheet-check'));
     return opt;
   }));
+
+  $('list-nav').hidden = !state.hasLists;
+  $('list-count').textContent = state.lists.length;
+  setupListFilters();
+}
+
+/* ---------- 视图切换（时间轴 / 书影） ---------- */
+function setView(view, silent) {
+  state.view = view;
+  $('view-notes').hidden = view !== 'notes';
+  $('view-lists').hidden = view !== 'lists';
+  $('breadcrumb-page').textContent = view === 'lists' ? '书影' : '时间轴';
+  $('all-notes').classList.toggle('active', view === 'notes');
+  $('list-nav').classList.toggle('active', view === 'lists');
+  $('search').placeholder = view === 'lists' ? '找一本书，一部电影…' : '找一段话，或一个念头…';
+  if (silent) return;
+  if (view === 'lists') renderLists(); else render();
+}
+
+/* ---------- 书影清单渲染 ---------- */
+function listStatusText(entry) {
+  const labels = entry.type === 'movie'
+    ? { want: '想看', doing: '在看', done: '看完' }
+    : { want: '想读', doing: '在读', done: '读完' };
+  return labels[entry.status] || labels.want;
+}
+
+function listMetaText(entry) {
+  const bits = [];
+  if (entry.creator) bits.push(entry.creator + (entry.year ? ` · ${entry.year}` : ''));
+  else if (entry.year) bits.push(entry.year);
+  if (entry.progress) bits.push(entry.progress);
+  if (entry.rating) bits.push('★'.repeat(Math.min(5, Math.max(1, entry.rating))));
+  return bits.join(' · ');
+}
+
+function listExcerpt(entry) {
+  const clean = s => s
+    .replace(/→ 已成随记.*/g, '')
+    .replace(/^>\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_, p, l) => (l ? l.slice(1) : p.split('/').at(-1).replace(/\.[^.]+$/, '')))
+    .trim().slice(0, 80);
+  const last = entry.remarks.length ? entry.remarks[entry.remarks.length - 1].text : '';
+  if (last.trim()) return clean(last);
+  const line = entry.body.split(/\r?\n/).find(l => l.trim() && !/^#{1,3}\s/.test(l.trim()));
+  return clean(line || '');
+}
+
+function setupListFilters() {
+  const chips = (container, options, key) => {
+    $(container).replaceChildren(...options.map(([value, label]) => {
+      const el = button(label, 'filter-chip', () => {
+        state.listFilter[key] = state.listFilter[key] === value ? '' : value;
+        renderLists();
+      });
+      el.dataset.value = value;
+      return el;
+    }));
+  };
+  chips('lists-type-filter', [['', '全部'], ['book', '书'], ['movie', '影']], 'type');
+  chips('lists-status-filter', [['', '全部'], ['want', '想'], ['doing', '在读'], ['done', '读完']], 'status');
+  const tags = [...new Set(state.lists.flatMap(n => n.tags))];
+  $('lists-tag-filter').replaceChildren(...tags.map(tag => {
+    const el = button('# ' + tag, 'filter-chip', () => {
+      state.listFilter.tag = state.listFilter.tag === tag ? '' : tag;
+      renderLists();
+    });
+    el.dataset.value = tag;
+    return el;
+  }));
+}
+
+function filteredLists() {
+  const f = state.listFilter;
+  const q = state.filter.q.trim().toLocaleLowerCase();
+  const out = state.lists.filter(n =>
+    (!q || [n.title, n.creator, n.body, ...n.tags].join('\n').toLocaleLowerCase().includes(q)) &&
+    (!f.type || n.type === f.type) &&
+    (!f.status || n.status === f.status) &&
+    (!f.tag || n.tags.includes(f.tag)));
+  const sorters = {
+    added: (a, b) => b.added.localeCompare(a.added) || b.id.localeCompare(a.id),
+    priority: (a, b) => (a.priority ?? 9) - (b.priority ?? 9) || b.added.localeCompare(a.added),
+    rating: (a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.added.localeCompare(a.added),
+  };
+  return out.sort(sorters[state.listSort] || sorters.added);
+}
+
+function renderLists() {
+  const lists = filteredLists();
+  $('lists-grid').replaceChildren(...lists.map(renderListCard));
+  $('lists-count-line').textContent = `${lists.length} 条`;
+  const count = s => state.lists.filter(n => n.status === s).length;
+  $('lists-stats').textContent = `想读/想看 ${count('want')} · 在读/在看 ${count('doing')} · 读完/看完 ${count('done')}`;
+  const empty = $('lists-empty');
+  empty.hidden = lists.length > 0;
+  if (!state.lists.length) {
+    $('lists-empty-title').textContent = '清单还空着。';
+    $('lists-empty-text').textContent = '对任意 AI 说一句「想读《…》」或「想看《…》」，第一条就会出现在这里。';
+  } else {
+    $('lists-empty-title').textContent = '这里没有这个条目。';
+    $('lists-empty-text').textContent = '换个筛选或关键词，回到全部看看。';
+  }
+  document.querySelectorAll('#lists-type-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === state.listFilter.type));
+  document.querySelectorAll('#lists-status-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === state.listFilter.status));
+  document.querySelectorAll('#lists-tag-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === state.listFilter.tag));
+  const sortLabels = { added: '最近添加 ↓', priority: '优先级 ↑', rating: '评分 ↓' };
+  $('lists-sort').textContent = sortLabels[state.listSort] || sortLabels.added;
+}
+
+function renderListCard(entry) {
+  const card = node('article', undefined, 'list-card');
+  card.id = entry.anchor;
+
+  const head = node('div', undefined, 'list-card-head');
+  head.append(node('span', listStatusText(entry), `list-badge list-${entry.status}`),
+    node('span', entry.type === 'movie' ? '影' : '书', 'list-kind'));
+  card.append(head);
+
+  const cover = entry.attachments.find(a => a.mime.startsWith('image/'));
+  if (cover) {
+    const imageButton = button('', 'list-cover', () => showImage(cover));
+    imageButton.setAttribute('aria-label', `查看「${entry.title}」的封面`);
+    const img = node('img');
+    img.alt = `${entry.title}的封面`;
+    img.loading = 'lazy';
+    imageButton.append(img);
+    card.append(imageButton);
+    loadMedia(cover)
+      .then(url => { if (img.isConnected && state.key) img.src = url; })
+      .catch(() => {
+        if (state.key) imageButton.replaceChildren(node('div', '封面暂时未能加载。', 'image-loading'));
+      });
+  }
+
+  const title = node('h3', undefined, 'list-card-title');
+  title.append(button(entry.title, 'card-title', () => openList(entry.anchor)));
+  card.append(title);
+  const meta = listMetaText(entry);
+  if (meta) card.append(node('p', meta, 'list-card-meta'));
+  const excerpt = listExcerpt(entry);
+  if (excerpt) card.append(node('p', excerpt, 'card-excerpt'));
+
+  const tags = node('div', undefined, 'card-tags');
+  entry.tags.slice(0, 3).forEach(tag => tags.append(button('# ' + tag, 'card-tag', () => {
+    state.listFilter.tag = state.listFilter.tag === tag ? '' : tag;
+    renderLists();
+  })));
+  card.append(tags);
+  card.append(button('翻开条目 ↗', 'read-more', () => openList(entry.anchor)));
+  return card;
 }
 
 function filteredNotes() {
@@ -473,6 +638,15 @@ $('overlay-close').addEventListener('click', closeAttachmentOverlay);
 $('attachment-overlay').addEventListener('click', e => { if (e.target === $('attachment-overlay')) closeAttachmentOverlay(); });
 
 /* ---------- Markdown 渲染（随记子集） ---------- */
+/* wiki 链接解析：[[01-Journals/…]] → 随记、[[03-Lists/…]] → 书影条目；解析不到按纯文本 */
+function resolveWiki(target) {
+  const t = String(target).trim().replace(/\.md$/, '');
+  if (!t || t.startsWith('Attachments/')) return null;
+  const hit = state.notes.find(n => (n.rel || '').replace(/\.md$/, '') === t)
+    || state.lists.find(n => (n.rel || '').replace(/\.md$/, '') === t);
+  if (!hit) return null;
+  return { kind: hit.anchor.startsWith('list-') ? 'list' : 'note', anchor: hit.anchor };
+}
 function inline(text, target) {
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|!?\[\[[^\]]+\]\]|\[[^\]]+\]\([^\s)]+\))/g;
   let start = 0;
@@ -484,7 +658,14 @@ function inline(text, target) {
     else if (value.includes('[[')) {
       const inside = value.replace(/^!?\[\[|\]\]$/g, '');
       const [path, label] = inside.split('|');
-      target.append(document.createTextNode((label || path.split('/').at(-1).replace(/\.[^.]+$/, '')).trim()));
+      const text = (label || path.split('/').at(-1).replace(/\.[^.]+$/, '')).trim();
+      const dest = resolveWiki(path);
+      if (dest) {
+        const open = () => (dest.kind === 'list' ? openList : openNote)(dest.anchor);
+        target.append(button(text, 'wiki-link', open));
+      } else {
+        target.append(document.createTextNode(text));
+      }
     } else {
       const parts = value.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (parts && /^https?:\/\//i.test(parts[2])) {
@@ -558,21 +739,101 @@ function markdown(text) {
 }
 
 /* ---------- 阅读器 ---------- */
-function openNote(anchor) {
+function openNote(anchor, fromHash) {
   const note = state.notes.find(n => n.anchor === anchor);
   if (!note) return;
   state.currentAnchor = anchor;
+  state.currentDetail = { kind: 'note', anchor };
   $('reader-date').textContent = dateLabel(note);
   $('reader-id').textContent = note.id;
   $('reader-title').textContent = note.title;
   $('reader-tags').replaceChildren(...note.tags.map(t => node('span', t)));
+  $('reader-meta').hidden = true;
   $('reader-body').replaceChildren(markdown(note.body));
-  $('reader-attachments').replaceChildren();
+  $('download-note').textContent = '下载这条随记 ↓';
+  renderAttachments($('reader-attachments'), note.attachments, anchor, () => openNote(anchor, true));
 
-  for (const attachment of note.attachments) {
+  // 回链：扫清单正文的 wiki 链接，找出指向这篇随记的书影
+  const rel = (note.rel || '').replace(/\.md$/, '');
+  renderReaderLinks(rel ? state.lists.filter(l => l.links.some(t => t.replace(/\.md$/, '') === rel)) : []);
+
+  if (!$('reader').open) $('reader').showModal();
+  $('reader').scrollTop = 0;
+  pushDetail(anchor, fromHash);
+}
+
+function openList(anchor, fromHash) {
+  const entry = state.lists.find(n => n.anchor === anchor);
+  if (!entry) return;
+  state.currentAnchor = anchor;
+  state.currentDetail = { kind: 'list', anchor };
+  $('reader-date').textContent = `加入于 ${dateLabel({ date: entry.added })}`;
+  $('reader-id').textContent = entry.id;
+  $('reader-title').textContent = entry.title;
+  $('reader-tags').replaceChildren(...entry.tags.map(t => node('span', t)));
+  $('reader-meta').textContent = [
+    entry.type === 'movie' ? '影视' : '书籍',
+    listStatusText(entry),
+    listMetaText(entry),
+    entry.started ? `开始 ${entry.started}` : '',
+    entry.finished ? `完成 ${entry.finished}` : '',
+  ].filter(Boolean).join(' · ');
+  $('reader-meta').hidden = false;
+  $('reader-body').replaceChildren(markdown(entry.body));
+  $('download-note').textContent = '下载这条记录 ↓';
+  renderAttachments($('reader-attachments'), entry.attachments, anchor, () => openList(anchor, true));
+  // 正文「关联」里的 wiki 链接已渲染为可点按钮；这里补其它书影指向本条的回链
+  const rel = (entry.rel || '').replace(/\.md$/, '');
+  renderReaderLinks(rel
+    ? state.lists.filter(l => l.anchor !== entry.anchor && l.links.some(t => t.replace(/\.md$/, '') === rel))
+    : []);
+
+  if (!$('reader').open) $('reader').showModal();
+  $('reader').scrollTop = 0;
+  pushDetail(anchor, fromHash);
+}
+
+function renderReaderLinks(entries) {
+  const box = $('reader-links');
+  box.replaceChildren();
+  if (!entries.length) { box.hidden = true; return; }
+  box.append(node('p', '相关书影', 'reader-links-title'));
+  entries.forEach(l => box.append(button(`《${l.title}》`, 'reader-link-chip', () => openList(l.anchor))));
+  box.hidden = false;
+}
+
+/* 深链历史：打开详情入 history（返回键 = 回上一状态）；
+   从 hash 进入或同锚重开时只 replaceState，不堆历史项 */
+function pushDetail(anchor, fromHash) {
+  if (fromHash || location.hash === `#${anchor}`) {
+    history.replaceState({ detail: anchor }, '', `#${anchor}`);
+    return;
+  }
+  state.detailDepth++;
+  history.pushState({ detail: anchor }, '', `#${anchor}`);
+}
+
+function closeDetail() {
+  if (state.detailDepth > 0 && history.state?.detail) history.back();
+  else $('reader').close();
+}
+
+window.addEventListener('popstate', () => {
+  if (state.detailDepth > 0) state.detailDepth--;
+  if (!state.key) return;
+  const h = location.hash.slice(1);
+  if (h.startsWith('card-') && state.notes.some(n => n.anchor === h)) { openNote(h, true); return; }
+  if (h.startsWith('list-') && state.lists.some(n => n.anchor === h)) { openList(h, true); return; }
+  ['reader', 'lightbox'].forEach(id => { if ($(id).open) $(id).close(); });
+});
+
+/* 附件渲染：随记与书影条目共用（图片/音视频/HTML 沙箱预览/文本/下载） */
+function renderAttachments(container, attachments, anchor, reopen) {
+  container.replaceChildren();
+  for (const attachment of attachments) {
     const figure = node('figure');
     figure.append(node('figcaption', attachment.name));
-    $('reader-attachments').append(figure);
+    container.append(figure);
     const isHtml = /text\/html/.test(attachment.mime) || /\.html?$/i.test(attachment.name);
     const isText = /^(text\/plain|text\/markdown)$/.test(attachment.mime);
     loadMedia(attachment)
@@ -634,15 +895,11 @@ function openNote(anchor) {
         if (!figure.isConnected || !state.key) return;
         const retry = button('附件加载失败，点此重试', 'attachment-download', () => {
           state.media.delete(attachment.file);
-          figure.replaceChildren(node('figcaption', attachment.name));
-          openNote(anchor);
+          reopen();
         });
         figure.prepend(retry);
       });
   }
-  if (!$('reader').open) $('reader').showModal();
-  $('reader').scrollTop = 0;
-  history.replaceState(null, '', `#${anchor}`);
 }
 
 function openMonthSheet() {
@@ -659,7 +916,10 @@ function randomNote() {
 }
 
 function downloadNote() {
-  const note = state.notes.find(n => n.anchor === state.currentAnchor);
+  const d = state.currentDetail;
+  const note = d && d.kind === 'list'
+    ? state.lists.find(n => n.anchor === d.anchor)
+    : state.notes.find(n => n.anchor === state.currentAnchor);
   if (!note) return;
   const url = URL.createObjectURL(new Blob([note.raw], { type: 'text/markdown;charset=utf-8' }));
   const a = node('a');
@@ -685,20 +945,33 @@ $('show-password').addEventListener('click', () => {
   $('show-password').setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
 });
 ['lock-button', 'mobile-lock'].forEach(id => $(id).addEventListener('click', lockJournal));
-['all-notes', 'clear-filter', 'empty-reset'].forEach(id => $(id).addEventListener('click', resetFilters));
+$('all-notes').addEventListener('click', () => { setView('notes'); resetFilters(); });
+['clear-filter', 'empty-reset'].forEach(id => $(id).addEventListener('click', resetFilters));
+$('list-nav').addEventListener('click', () => setView('lists'));
+$('lists-sort').addEventListener('click', () => {
+  const order = ['added', 'priority', 'rating'];
+  state.listSort = order[(order.indexOf(state.listSort) + 1) % order.length];
+  renderLists();
+});
 ['random-note', 'revisit-button'].forEach(id => $(id).addEventListener('click', randomNote));
 $('sort-button').addEventListener('click', () => { state.ascending = !state.ascending; render(); });
 $('image-filter').addEventListener('click', () => { state.filter.images = !state.filter.images; render(); });
-$('search').addEventListener('input', () => { state.filter.q = $('search').value; render(); });
+$('search').addEventListener('input', () => {
+  state.filter.q = $('search').value;
+  if (state.view === 'lists') renderLists(); else render();
+});
 $('calendar-prev').addEventListener('click', () => moveCalendar(-1));
 $('calendar-next').addEventListener('click', () => moveCalendar(1));
-$('close-reader').addEventListener('click', () => $('reader').close());
+$('close-reader').addEventListener('click', closeDetail);
 $('close-lightbox').addEventListener('click', () => $('lightbox').close());
 $('reader').addEventListener('close', () => {
   state.currentAnchor = null;
-  $('reader-body').replaceChildren();
-  $('reader-attachments').replaceChildren();
-  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  state.currentDetail = null;
+  ['reader-body', 'reader-attachments', 'reader-links'].forEach(id => $(id).replaceChildren());
+  $('reader-meta').hidden = true;
+  // Esc 关闭也走"返回上一状态"：弹掉本次详情的历史项；popstate 路径 depth 已减，不会误回退
+  if (state.detailDepth > 0 && history.state?.detail && location.hash === `#${history.state.detail}`) history.back();
+  else if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 });
 ['reader', 'lightbox'].forEach(id => $(id).addEventListener('click', e => { if (e.target === $(id)) $(id).close(); }));
 $('download-note').addEventListener('click', downloadNote);

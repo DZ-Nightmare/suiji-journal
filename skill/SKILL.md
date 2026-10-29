@@ -4,7 +4,8 @@ description: >
   随记（suiji-journal）：把对话、文件、图片、网页等素材，AI 生成为「触点 / 思考 / 关联」
   格式的日记随笔，加密后写入随记并自动推送到 GitHub Pages（私密时间轴站点）。
   触发词：记随记、写随记、随笔、写一篇随笔、存进随记、记到随记、把今天记下来、沉淀专题、
-  生成日记随笔、推送随记、发布随记、更新随记、随记推送、journal。
+  生成日记随笔、推送随记、发布随记、更新随记、随记推送、journal、
+  想读、想看、书单、片单、书影清单、记感想、标记读完、标记看完、看到哪了、读到哪了。
   输入不限：一段话 / 聊天记录 / 图片 / 录音 / 文档 / 网页链接 / 会议内容，都可生成随记。
   NOT for：写代码、写报告长文（非随笔）、公开发布的内容；那些走其他工作流。
 ---
@@ -45,6 +46,42 @@ node tools/import.js --collection --title "专题名" --date 2026-10-20 草稿.m
 `import.js` 会自动：把图片/音频/文档复制进 `vault/Attachments/`（统一命名 `<日期>-<原名>`）、
 改写正文中的附件引用、补齐 frontmatter、放入正确目录（`01-Journals/YYYY/MM/YYYY-MM-DD.md`
 或 `02-Collection/<标题>.md`），然后构建。`--push` 一步到推送。
+
+## 书影清单（想读 / 想看，03-Lists）
+
+清单条目**不是随记**——记清单、追加感想都不占「一次一条随记」的配额，两者互不干扰。
+条目存 `vault/03-Lists/<书|影>-<作品名>.md`，网页端「书影」页展示，与随记双向互链。
+
+```bash
+# 入清单（书/影 二选一；--why 一句话缘由，--tags 主题词）
+node tools/list.js add 书 "沙丘" --creator 弗兰克·赫伯特 --year 1965 --why "想读的经典"
+node tools/list.js add 影 "银翼杀手2049" --creator 丹尼斯·维伦纽瓦 --tags 科幻
+
+# 状态流转（want=想 / doing=在 / done=完，允许回退）；done 可带评分与完成日期
+node tools/list.js status "沙丘" doing
+node tools/list.js status "沙丘" done --finished 2026-11-20 --rating 5
+
+# 进度（自由文本）与感想（日期默认今天，小标题可省）
+node tools/list.js progress "沙丘" "217/500"
+node tools/list.js remark "沙丘" "第三章的味道出来了" --title 读到第三章
+
+# 关联随记（互链；用户说「《X》读完了」且写了随记时用）
+node tools/list.js link "沙丘" "01-Journals/2026/10/2026-10-21"
+
+# 查看：node tools/list.js show "沙丘" ｜ node tools/list.js list [--status doing]
+# 通用参数 --push：构建后直接推送
+```
+
+**三条豁免**（清单条目不受随记三条铁律约束，别做成随记格式）：
+1. 条目标题 = 作品名，不按「触动点 3-8 字」取名；
+2. 正文是感想时间流（`### 日期 · 小标题` 随手追加），**不写**触点/思考/关联三段；
+3. tags 是纯主题词，没有「首标签 = 内容分类」规则（分类由 type/status 承担）。
+
+**感想升格为随记**：用户说「把《X》那条感想写成随记」时，以该感想为素材写标准随记
+（触点/思考/关联）导入 01-Journals，然后：
+`node tools/list.js promote "X" 月-日 "01-Journals/YYYY/MM/YYYY-MM-DD"`（在该感想尾部留痕，
+不留悬空）。互链约定：wiki 链接只写在正文「关联」段（如 `- 相关随记：[[01-Journals/…]]`），
+frontmatter 不放链接；网页端双向可点。
 
 ## 标准流程（5 步）
 
@@ -133,6 +170,7 @@ tags:
 
 ## 验收
 
-- `node tools/build.js` 输出「✓ 已加密 N 篇随记」即成功。
+- `node tools/build.js` 输出「✓ 已加密 N 篇随记（、M 条书影）」即成功。
 - `git -C 项目目录 log --oneline -1` 有新提交、`git status` 干净（除 vault）。
-- 线上 `https://<用户名>.github.io/<仓库名>/` 用密码可解锁、新随记出现在时间轴。
+- 线上 `https://<用户名>.github.io/<仓库名>/` 用密码可解锁、新随记出现在时间轴、
+  新条目出现在「书影」页（清单操作时）。

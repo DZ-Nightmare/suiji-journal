@@ -30,11 +30,18 @@ node tools/import.js 草稿.md 图片1.webp --date 2026-10-20 --tags 随笔,观�
 node tools/import.js --text "随笔全文（可含 frontmatter）" --date 2026-10-20 --tags 随笔 --push
 ```
 
+### 怎么管书影清单（想读 / 想看）
+
+对 AI 说「想读《沙丘》」「想看《银翼杀手2049》」即可入清单；「《沙丘》在读了，
+看到 217 页」「《X》看完了，4 星」流转状态；「对《X》记个感想：……」追加感想。
+清单操作不算随记，不占「一次一条」配额。命令行用 `node tools/list.js`（见工具链）。
+
 ## 工具链
 
 | 命令 | 作用 |
 | --- | --- |
 | `node tools/import.js <文件…> [--text 文本] [--date 日期] [--tags 标签] [--source 来源] [--title 标题] [--collection] [--push]` | 把随笔/图片/音频/文档收进 vault，自动改写附件引用并构建（`--push` 一步推送） |
+| `node tools/list.js add 书\|影 "标题" [参数…]` | 书影清单管理：add / status / progress / remark / link / promote / show / list（`--push` 一步推送） |
 | `node tools/build.js` | 把 vault 明文加密成 `journal.enc.json` + `media/` |
 | `node tools/publish.js --message "…"` | 构建 + git 提交 + 推送（Pages 自动更新） |
 
@@ -42,14 +49,18 @@ node tools/import.js --text "随笔全文（可含 frontmatter）" --date 2026-1
 
 ```
 suiji-journal/
-├── index.html / styles.css / app.js   # 网页端（解锁、时间轴、日历、阅读器）
-├── journal.enc.json                   # 加密随记数据（入库）
+├── index.html / styles.css / app.js   # 网页端（解锁、时间轴、日历、书影、阅读器）
+├── viewer.html                        # 附件（HTML）沙箱查看器
+├── journal.enc.json                   # 加密随记+书影数据（入库）
 ├── media/*.bin                        # 加密附件（入库）
 ├── vault/                             # 明文工作区（不入库！）
 │   ├── 01-Journals/2026/10/2026-10-19.md
 │   ├── 02-Collection/处世哲学-顺势而为.md
+│   ├── 03-Lists/书-沙丘.md            # 书影清单条目（想读 / 想看）
 │   └── Attachments/*.webp
-├── tools/                             # 构建 / 导入 / 推送脚本
+├── tools/                             # 构建 / 导入 / 清单 / 推送脚本
+├── skill/SKILL.md                     # suiji-journal skill 真源（入库）
+├── docs/                              # 设计文档（书影模块设计等）
 ├── journal.config.json                # 查看密码等本机配置（不入库）
 └── journal.config.example.json        # 配置样例（入库）
 ```
@@ -59,6 +70,7 @@ suiji-journal/
 - 密码解锁（错误密码无法解密，AES-GCM 认证失败）
 - 时间轴卡片流：引文 + 感想 + 配图 + 标签
 - 月份 / 主题 / 标签 / 关键词 / 有图 五种筛选，日历点日回看
+- 书影清单：想读/在读/读完状态流转、感想时间流、类型/状态/标签/搜索筛选、与随记双向互链
 - 「偶遇一条旧念头」随机翻页
 - 全文阅读器：Markdown 渲染、附件（图片/音频/视频/文件）、一键导出原始 md
 - 30 分钟无操作自动锁定

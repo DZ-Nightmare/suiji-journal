@@ -142,7 +142,7 @@ function scanVault(config) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'Attachments' || entry.name.startsWith('.')) continue;
+        if (entry.name === 'Attachments' || entry.name === '03-Lists' || entry.name.startsWith('.')) continue;
         walk(full);
       } else if (entry.name.endsWith('.md')) {
         notes.push(full);
@@ -181,6 +181,7 @@ function scanVault(config) {
   return parsed.map((n, i) => ({
     id: `Card-${String(i + 1).padStart(3, '0')}`,
     anchor: `card-${String(i + 1).padStart(3, '0')}`,
+    rel: n.rel,
     type: n.type,
     title: n.title,
     date: n.date,
@@ -192,6 +193,101 @@ function scanVault(config) {
     thought: n.thought,
     body: n.body,
     raw: n.raw,
+    attachments: n.attachments.map(a => ({
+      name: a.name, mime: a.mime, size: a.size,
+      file: `media/${a.hash}.bin`,
+      aad: `attachment:${a.hash}`,
+    })),
+    _content: n.attachments.map(a => ({ hash: a.hash, content: a.content })),
+  }));
+}
+
+/* ---------- 清单（03-Lists）解析 ---------- */
+
+/* 感想流：`## 感想` 段内按 `### MM-DD · 小标题` 分块（段内允许 ### 小标题，只在下一个 ## 处结束） */
+function extractRemarks(body) {
+  const lines = body.split(/\r?\n/);
+  const start = lines.findIndex(l => /^##\s+感想\s*$/.test(l.trim()));
+  const remarks = [];
+  if (start < 0) return remarks;
+  let cur = null;
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^##\s/.test(line)) break;
+    const h = line.match(/^###\s+(\d{1,2}-\d{1,2})(?:\s*[·・.]\s*(.*))?$/);
+    if (h) {
+      cur = { date: h[1], title: (h[2] || '').trim(), text: '' };
+      remarks.push(cur);
+    } else if (cur) {
+      cur.text += (cur.text ? '\n' : '') + line;
+    }
+  }
+  return remarks.map(r => ({ ...r, text: r.text.trim() }));
+}
+
+/* 正文里的 wiki 链接（去掉附件引用，去 .md 后缀），供双向互链用 */
+function findWikiLinks(body) {
+  const out = [];
+  for (const m of body.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)) {
+    const t = m[1].trim().replace(/\.md$/, '');
+    if (!t.startsWith('Attachments/')) out.push(t);
+  }
+  return [...new Set(out)];
+}
+
+/* 扫描 03-Lists，产出与网页端约定一致的 lists 数组（未加密）
+   字段缺失按默认处理；added 是唯一日期依据，排序规则与随记一致（升序保 id 稳定） */
+function scanLists(config) {
+  const vaultDir = path.join(ROOT, config.vault || 'vault');
+  const listDir = path.join(vaultDir, '03-Lists');
+  const attachDir = path.join(vaultDir, 'Attachments');
+  if (!fs.existsSync(listDir)) return [];
+  const num = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+
+  const parsed = fs.readdirSync(listDir).filter(n => n.endsWith('.md')).sort().map(name => {
+    const file = path.join(listDir, name);
+    const text = fs.readFileSync(file, 'utf8');
+    const { data, body } = parseFrontmatter(text);
+    const rel = path.posix.join('03-Lists', name);
+    const attachNames = findAttachments(body, data);
+    const attachments = [];
+    for (const aName of attachNames) {
+      const afile = path.join(attachDir, aName);
+      if (!fs.existsSync(afile)) { console.warn(`  ! 附件缺失：${aName}（${rel}）`); continue; }
+      const content = fs.readFileSync(afile);
+      attachments.push({ name: aName, content, size: content.length, mime: mimeOf(aName), hash: crypto.createHash('sha256').update(content).digest('hex').slice(0, 20) });
+    }
+    return {
+      rel,
+      added: String(data.added || data.date || '').slice(0, 10),
+      type: data.type === 'movie' ? 'movie' : 'book',
+      title: shortTitle(data, body),
+      creator: data.creator ? String(data.creator) : '',
+      year: data.year ? String(data.year) : '',
+      status: ['want', 'doing', 'done'].includes(String(data.status)) ? String(data.status) : 'want',
+      priority: num(data.priority),
+      rating: num(data.rating),
+      started: String(data.started || '').slice(0, 10),
+      finished: String(data.finished || '').slice(0, 10),
+      progress: data.progress ? String(data.progress) : '',
+      tags: Array.isArray(data.tags) ? data.tags.map(String) : (data.tags ? [String(data.tags)] : []),
+      remarks: extractRemarks(body),
+      links: findWikiLinks(body),
+      body: body.trim(), raw: text, attachments,
+    };
+  }).filter(n => n.added);
+
+  // 升序排（与随记同规则）：新条目追加在尾部，List-XXX 编号与深链跨构建稳定
+  parsed.sort((a, b) => a.added.localeCompare(b.added) || a.rel.localeCompare(b.rel));
+  return parsed.map((n, i) => ({
+    id: `List-${String(i + 1).padStart(3, '0')}`,
+    anchor: `list-${String(i + 1).padStart(3, '0')}`,
+    rel: n.rel,
+    type: n.type, title: n.title, creator: n.creator, year: n.year,
+    status: n.status, priority: n.priority, rating: n.rating,
+    added: n.added, started: n.started, finished: n.finished, progress: n.progress,
+    tags: n.tags, remarks: n.remarks, links: n.links,
+    body: n.body, raw: n.raw,
     attachments: n.attachments.map(a => ({
       name: a.name, mime: a.mime, size: a.size,
       file: `media/${a.hash}.bin`,
@@ -213,4 +309,4 @@ function mimeOf(name) {
   })[ext] || 'application/octet-stream';
 }
 
-module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, parseFrontmatter, scanVault, mimeOf, weekdayOf, randBytes, b64 };
+module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, parseFrontmatter, scanVault, scanLists, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };

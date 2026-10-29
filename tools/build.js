@@ -12,6 +12,7 @@ function main() {
   if (!password) throw new Error('未配置查看密码（journal.config.json 的 password 或环境变量 JOURNAL_PASSWORD）');
 
   const notes = lib.scanVault(config);
+  const lists = lib.scanLists(config);
   const mediaDir = path.join(lib.ROOT, 'media');
   fs.mkdirSync(mediaDir, { recursive: true });
 
@@ -19,11 +20,12 @@ function main() {
   const saltB64 = lib.b64(lib.randBytes(24));
   const keep = new Set();
 
-  const finalNotes = notes.map(note => {
-    const { _content, ...clean } = note;
+  // 随记与清单共用同一套附件加密与打包逻辑
+  const finalize = entries => entries.map(entry => {
+    const { _content, ...clean } = entry;
     return {
       ...clean,
-      attachments: note.attachments.map((a, i) => {
+      attachments: entry.attachments.map((a, i) => {
         const hash = a.aad.split(':')[1];
         fs.writeFileSync(path.join(mediaDir, `${hash}.bin`), lib.encryptAttachment(_content[i].content, password, saltB64, hash));
         keep.add(`${hash}.bin`);
@@ -31,6 +33,8 @@ function main() {
       }),
     };
   });
+  const finalNotes = finalize(notes);
+  const finalLists = finalize(lists);
 
   // 清理不再被引用的加密附件
   for (const file of fs.readdirSync(mediaDir)) {
@@ -40,7 +44,7 @@ function main() {
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   const built = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}+08:00`;
-  const payload = { notes: finalNotes, built_at: built };
+  const payload = { notes: finalNotes, lists: finalLists, built_at: built };
   const enc = lib.encryptPayload(payload, password, saltB64);
   fs.writeFileSync(path.join(lib.ROOT, 'journal.enc.json'), JSON.stringify(enc));
 
@@ -57,7 +61,8 @@ function main() {
   fs.writeFileSync(appFile, js);
 
   const days = new Set(finalNotes.map(n => n.date)).size;
-  console.log(`✓ 已加密 ${finalNotes.length} 篇随记（${days} 个记录日）→ journal.enc.json`);
+  const listStat = finalLists.length ? `、${finalLists.length} 条书影` : '';
+  console.log(`✓ 已加密 ${finalNotes.length} 篇随记${listStat}（${days} 个记录日）→ journal.enc.json`);
   console.log(`✓ 已加密 ${keep.size} 个附件 → media/`);
   console.log(`✓ 构建时间 ${payload.built_at}`);
 }
