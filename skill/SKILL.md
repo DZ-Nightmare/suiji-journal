@@ -54,9 +54,9 @@ node tools/import.js --collection --title "专题名" --date 2026-10-20 草稿.m
 命令全集：add / status / progress / remark / link / promote / rename / rm / show / list。
 
 ```bash
-# 入清单（书/影 二选一；--why 一句话缘由，--tags 主题词）
+# 入清单（书/影 二选一；--why 一句话缘由，--tags 主题词；creator/year 先搜索确认）
 node tools/list.js add 书 "沙丘" --creator 弗兰克·赫伯特 --year 1965 --why "想读的经典"
-node tools/list.js add 影 "银翼杀手2049" --creator 丹尼斯·维伦纽瓦 --tags 科幻
+node tools/list.js add 影 "银翼杀手2049" --creator 丹尼斯·维伦纽瓦 --year 2017 --tags 科幻
 
 # 状态流转（want=想 / doing=在 / done=完，允许回退）；done 可带评分与完成日期
 node tools/list.js status "沙丘" doing
@@ -76,6 +76,14 @@ node tools/list.js rm "银翼杀手2049"
 # 查看：node tools/list.js show "沙丘" ｜ node tools/list.js list [--status doing]
 # 通用参数 --push：构建后直接推送
 ```
+
+**入清单规范（作品信息与海报）**：
+1. **先搜索确认作品信息**（导演 / 作者、上映 / 出版年份）填 `--creator` / `--year`；
+   同名重名作品多，不确定就问用户或留空，**绝不编造**。
+2. **官方主海报作封面**：海报图存为 `vault/Attachments/<日期>-<片名>-海报.jpg`，
+   条目正文写 `[[Attachments/…]]` 引用（网页自动显示为封面）。⚠️ AI 环境不能直接
+   下载网络图片（web 内容规则）——**海报图请用户提供**（拖进对话或存到桌面），
+   AI 负责搜索定位官方海报、挂附件、发布。
 
 **三条豁免**（清单条目不受随记三条铁律约束，别做成随记格式）：
 1. 条目标题 = 作品名，不按「触动点 3-8 字」取名；
