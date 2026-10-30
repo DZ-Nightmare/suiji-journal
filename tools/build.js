@@ -44,7 +44,13 @@ function main() {
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   const built = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}+08:00`;
-  const payload = { notes: finalNotes, lists: finalLists, built_at: built };
+  // 墓碑（tombstones）：登记被有意删除/改名的 vault 相对路径，随载荷跨设备传播，
+  // 防止对账的"只增不删"把它们恢复回来（docs/多设备同步设计.md）
+  const tombFile = path.join(lib.ROOT, config.vault || 'vault', '.tombstones');
+  const tombstones = fs.existsSync(tombFile)
+    ? fs.readFileSync(tombFile, 'utf8').split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+    : [];
+  const payload = { notes: finalNotes, lists: finalLists, tombstones, built_at: built };
   const enc = lib.encryptPayload(payload, password, saltB64);
   fs.writeFileSync(path.join(lib.ROOT, 'journal.enc.json'), JSON.stringify(enc));
 

@@ -59,6 +59,20 @@ function reconcile() {
   }
 
   const payload = lib.decryptPayload(enc, password);
+
+  // 墓碑合并：远端删除意图并入本地（跨设备传播），并对本地已存在的墓碑文件生效
+  const tombFile = path.join(vaultDir, '.tombstones');
+  const tombSet = new Set([
+    ...(fs.existsSync(tombFile) ? fs.readFileSync(tombFile, 'utf8').split(/\r?\n/).map(s => s.trim()).filter(Boolean) : []),
+    ...(Array.isArray(payload.tombstones) ? payload.tombstones : []),
+  ]);
+  if (tombSet.size) fs.writeFileSync(tombFile, [...tombSet].sort().join('\n') + '\n');
+  let tombApplied = 0;
+  for (const rel of tombSet) {
+    const p = path.join(vaultDir, rel);
+    if (fs.existsSync(p)) { fs.unlinkSync(p); tombApplied++; console.log(`✓ 墓碑生效：删除 ${rel}`); }
+  }
+
   const entries = [
     ...(Array.isArray(payload.notes) ? payload.notes : []).map(n => ({ ...n, kind: '随记' })),
     ...(Array.isArray(payload.lists) ? payload.lists : []).map(n => ({ ...n, kind: '书影' })),
@@ -67,6 +81,7 @@ function reconcile() {
 
   for (const e of entries) {
     if (!e.rel || !e.raw) continue;
+    if (tombSet.has(e.rel)) { skipped++; continue; }  // 已删除/改名，不恢复
     const target = path.join(vaultDir, e.rel);
     const raw = e.raw.endsWith('\n') ? e.raw : e.raw + '\n';
     if (!fs.existsSync(target)) {
@@ -112,7 +127,7 @@ function reconcile() {
     }
   }
 
-  console.log(`✓ 对账完成：恢复 ${restored} 篇随记/书影、${restoredAtt} 个附件；跳过 ${skipped} 项；冲突留痕 ${conflicted} 项`);
+  console.log(`✓ 对账完成：恢复 ${restored} 篇随记/书影、${restoredAtt} 个附件；跳过 ${skipped} 项；冲突留痕 ${conflicted} 项；墓碑生效 ${tombApplied} 项`);
   if (conflicted) console.log('⚠ 有冲突副本待人工合并（vault/_sync-conflicts/，不参与构建）');
 }
 

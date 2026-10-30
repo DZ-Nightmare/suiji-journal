@@ -85,6 +85,14 @@ function listDir(config) {
   return path.join(lib.ROOT, config.vault || 'vault', LIST_DIR);
 }
 
+/* 墓碑登记：记录被有意删除/改名的 vault 相对路径，防止对账恢复（随载荷跨设备传播） */
+function addTombstone(vaultDir, rel) {
+  const f = path.join(vaultDir, '.tombstones');
+  const lines = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split(/\r?\n/).filter(Boolean) : [];
+  if (!lines.includes(rel)) lines.push(rel);
+  fs.writeFileSync(f, lines.join('\n') + '\n');
+}
+
 /* 按标题/文件名模糊匹配条目；重名或无匹配时列出候选 */
 function findEntry(dir, query) {
   const q = String(query).trim().toLowerCase();
@@ -179,7 +187,7 @@ function main() {
   const dir = listDir(config);
   fs.mkdirSync(dir, { recursive: true });
 
-  const needBuild = ['add', 'status', 'progress', 'remark', 'link', 'promote'].includes(command);
+  const needBuild = ['add', 'status', 'progress', 'remark', 'link', 'promote', 'rm', 'rename'].includes(command);
   let message = '';
 
   if (command === 'add') {
@@ -259,6 +267,32 @@ function main() {
     entry.body = markPromoted(entry.body, dateMD, target);
     writeEntry(entry);
     message = `✓ 《${entry.data.title}》 ${dateMD} 感想已标记升格为随记`;
+
+  } else if (command === 'rm') {
+    const entry = findEntry(dir, rest[0]);
+    const rel = path.posix.join(LIST_DIR, path.basename(entry.file));
+    const vaultDir = path.dirname(dir);
+    addTombstone(vaultDir, rel);
+    fs.unlinkSync(entry.file);
+    message = `✓ 已移出清单：《${entry.data.title}》（墓碑已登记，其它设备同步后同步删除）`;
+
+  } else if (command === 'rename') {
+    const entry = findEntry(dir, rest[0]);
+    const newTitle = rest.slice(1).join(' ').trim();
+    if (!newTitle) throw new Error('用法：node tools/list.js rename "旧标题" "新标题"');
+    const vaultDir = path.dirname(dir);
+    const oldRel = path.posix.join(LIST_DIR, path.basename(entry.file));
+    const kindChar = entry.data.type === 'movie' ? '影' : '书';
+    let name = `${kindChar}-${sanitize(newTitle)}.md`;
+    let n = 2;
+    while (fs.existsSync(path.join(dir, name)) && path.join(dir, name) !== entry.file) {
+      name = `${kindChar}-${sanitize(newTitle)}-${n++}.md`;
+    }
+    entry.data.title = newTitle;
+    writeEntry(entry);
+    fs.renameSync(entry.file, path.join(dir, name));
+    if (oldRel !== path.posix.join(LIST_DIR, name)) addTombstone(vaultDir, oldRel);
+    message = `✓ 已改名：《${newTitle}》 → ${name}${oldRel !== path.posix.join(LIST_DIR, name) ? '（旧名已登记墓碑）' : ''}`;
 
   } else if (command === 'show') {
     const entry = findEntry(dir, rest[0]);
