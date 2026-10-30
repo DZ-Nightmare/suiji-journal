@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1793255464272';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1793324651905';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -276,6 +276,7 @@ function populate() {
 
   $('list-nav').hidden = !state.hasLists;
   $('list-count').textContent = state.lists.length;
+  $('view-switch').hidden = !state.hasLists;
   setupListFilters();
 }
 
@@ -287,6 +288,12 @@ function setView(view, silent) {
   $('breadcrumb-page').textContent = view === 'lists' ? '书影' : '时间轴';
   $('all-notes').classList.toggle('active', view === 'notes');
   $('list-nav').classList.toggle('active', view === 'lists');
+  // 移动端视图切换控件同步
+  [['mobile-view-notes', 'notes'], ['mobile-view-lists', 'lists']].forEach(([id, v]) => {
+    const btn = $(id);
+    btn.classList.toggle('active', view === v);
+    btn.setAttribute('aria-selected', String(view === v));
+  });
   $('search').placeholder = view === 'lists' ? '找一本书，一部电影…' : '找一段话，或一个念头…';
   if (silent) return;
   if (view === 'lists') renderLists(); else render();
@@ -948,6 +955,8 @@ $('show-password').addEventListener('click', () => {
 $('all-notes').addEventListener('click', () => { setView('notes'); resetFilters(); });
 ['clear-filter', 'empty-reset'].forEach(id => $(id).addEventListener('click', resetFilters));
 $('list-nav').addEventListener('click', () => setView('lists'));
+$('mobile-view-notes').addEventListener('click', () => setView('notes'));
+$('mobile-view-lists').addEventListener('click', () => setView('lists'));
 $('lists-sort').addEventListener('click', () => {
   const order = ['added', 'priority', 'rating'];
   state.listSort = order[(order.indexOf(state.listSort) + 1) % order.length];

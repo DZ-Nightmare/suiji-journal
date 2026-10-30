@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1793255464272" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1793255464272">
-  <link rel="stylesheet" href="styles.css?v=1793255464272">
-  <script src="app.js?v=1793255464272" defer></script>
+  <link rel="icon" href="icon.svg?v=1793324651905" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1793324651905">
+  <link rel="stylesheet" href="styles.css?v=1793324651905">
+  <script src="app.js?v=1793324651905" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#timeline">跳到时间轴</a>
@@ -99,6 +99,11 @@
     </header>
 
     <main id="main-content">
+      <!-- 移动端视图切换（桌面端入口在侧栏） -->
+      <div class="view-switch" id="view-switch" role="tablist" aria-label="切换视图" hidden>
+        <button class="view-switch-btn active" id="mobile-view-notes" role="tab" aria-selected="true" type="button">时间轴</button>
+        <button class="view-switch-btn" id="mobile-view-lists" role="tab" aria-selected="false" type="button">书影</button>
+      </div>
       <div id="view-notes">
       <section class="hero">
         <div>
