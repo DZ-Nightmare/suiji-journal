@@ -51,6 +51,26 @@ function encryptAttachment(content, password, saltB64, hashHex) {
   return Buffer.concat([iv, ct, cipher.getAuthTag()]);
 }
 
+/* 整包解密：encryptPayload 的逆运算（多设备对账 sync.js 用，参数与站点端一致） */
+function decryptPayload(enc, password) {
+  const key = deriveKey(password, Buffer.from(enc.salt, 'base64'));
+  const d = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(enc.nonce, 'base64'));
+  d.setAAD(Buffer.from(AAD_JOURNAL));
+  const ct = Buffer.from(enc.ciphertext, 'base64');
+  d.setAuthTag(ct.subarray(ct.length - 16));
+  const plain = Buffer.concat([d.update(ct.subarray(0, ct.length - 16)), d.final()]);
+  return JSON.parse(plain.toString('utf8'));
+}
+
+/* 附件解密：encryptAttachment 的逆运算（bin = 12 字节 IV + 密文 + 16 字节标签） */
+function decryptAttachment(bin, password, saltB64, hashHex) {
+  const key = deriveKey(password, Buffer.from(saltB64, 'base64'));
+  const d = crypto.createDecipheriv('aes-256-gcm', key, bin.subarray(0, 12));
+  d.setAAD(Buffer.from(`attachment:${hashHex}`));
+  d.setAuthTag(bin.subarray(bin.length - 16));
+  return Buffer.concat([d.update(bin.subarray(12, bin.length - 16)), d.final()]);
+}
+
 /* ---------- vault 解析 ---------- */
 
 function parseFrontmatter(text) {
@@ -142,7 +162,7 @@ function scanVault(config) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'Attachments' || entry.name === '03-Lists' || entry.name.startsWith('.')) continue;
+        if (entry.name === 'Attachments' || entry.name === '03-Lists' || entry.name === '_sync-conflicts' || entry.name.startsWith('.')) continue;
         walk(full);
       } else if (entry.name.endsWith('.md')) {
         notes.push(full);
@@ -309,4 +329,4 @@ function mimeOf(name) {
   })[ext] || 'application/octet-stream';
 }
 
-module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, parseFrontmatter, scanVault, scanLists, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };
+module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, decryptPayload, decryptAttachment, parseFrontmatter, scanVault, scanLists, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };

@@ -83,6 +83,20 @@ node tools/list.js link "沙丘" "01-Journals/2026/10/2026-10-21"
 不留悬空）。互链约定：wiki 链接只写在正文「关联」段（如 `- 相关随记：[[01-Journals/…]]`），
 frontmatter 不放链接；网页端双向可点。
 
+## 多设备同步（多台设备记录必读）
+
+记录后一律走 `--push`（import/list 的 `--push`，或 `node tools/publish.js`）。发布闭环
+自动完成：拉取远端 → **对账**（把其它设备记的明文长回本地 vault，只增不删）→ 全量构建
+→ 推送；撞车自动合并重试。**不要手动 build + 手动 push**——绕过对账会把别人记的随记
+挤出密文包（覆盖丢数据）。
+
+- **新设备接入（三步）**：`git clone <仓库>` → 复制 `journal.config.example.json`
+  为 `journal.config.json` 填同一个查看密码 → `node tools/sync.js`（vault 从零长出
+  全部历史随记/书影/附件）。vault 丢失恢复同招——密文载荷即明文备份。
+- 推送被拒（fetch first）**禁止盲推或直接覆盖**，`publish.js` 会自动合并重试。
+- 同一条目被两台设备同时修改：本地版本为准，远端版本存入 `vault/_sync-conflicts/`
+  留痕待人工合并（该目录不参与构建）。
+
 ## 标准流程（5 步）
 
 1. **收集素材**：用户给的全部内容——说的话、转发的聊天记录、图片、录音、文档、链接。
