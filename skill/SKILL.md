@@ -51,6 +51,7 @@ node tools/import.js --collection --title "专题名" --date 2026-10-20 草稿.m
 
 清单条目**不是随记**——记清单、追加感想都不占「一次一条随记」的配额，两者互不干扰。
 条目存 `vault/03-Lists/<书|影>-<作品名>.md`，网页端「书影」页展示，与随记双向互链。
+命令全集：add / status / progress / remark / link / promote / rename / rm / show / list。
 
 ```bash
 # 入清单（书/影 二选一；--why 一句话缘由，--tags 主题词）
@@ -67,6 +68,10 @@ node tools/list.js remark "沙丘" "第三章的味道出来了" --title 读到�
 
 # 关联随记（互链；用户说「《X》读完了」且写了随记时用）
 node tools/list.js link "沙丘" "01-Journals/2026/10/2026-10-21"
+
+# 改名 / 移出清单（自动登记墓碑 tombstones，其它设备同步后同步生效——不登记的删除会被对账复活！）
+node tools/list.js rename "沙丘" "沙丘：第一部"
+node tools/list.js rm "银翼杀手2049"
 
 # 查看：node tools/list.js show "沙丘" ｜ node tools/list.js list [--status doing]
 # 通用参数 --push：构建后直接推送
@@ -96,6 +101,8 @@ frontmatter 不放链接；网页端双向可点。
 - 推送被拒（fetch first）**禁止盲推或直接覆盖**，`publish.js` 会自动合并重试。
 - 同一条目被两台设备同时修改：本地版本为准，远端版本存入 `vault/_sync-conflicts/`
   留痕待人工合并（该目录不参与构建）。
+- 删除/改名条目**必须走 `list.js rm` / `list.js rename`**（自动登记墓碑，跨设备收敛）；
+  直接删文件的删除会被对账复活。
 
 ## 标准流程（5 步）
 

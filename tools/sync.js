@@ -34,10 +34,19 @@ function conflictName(dir, filename) {
   return name;
 }
 
+/* 冲突留痕：同一远端版本已留过痕就不再新增（分叉期间每次对账都会走到这里） */
 function conflictWrite(conflictDir, rel, raw, kind) {
   fs.mkdirSync(conflictDir, { recursive: true });
+  const base = path.basename(rel).replace(/\.[^.]+$/, '');
+  const content = raw.endsWith('\n') ? raw : raw + '\n';
+  for (const f of fs.readdirSync(conflictDir)) {
+    if (f.startsWith(`${base}-远端-`) && fs.readFileSync(path.join(conflictDir, f), 'utf8') === content) {
+      console.log(`  ⚠ ${kind}两边内容不同：此前已留痕（vault/_sync-conflicts/${f}），跳过`);
+      return;
+    }
+  }
   const name = conflictName(conflictDir, path.basename(rel));
-  fs.writeFileSync(path.join(conflictDir, name), raw.endsWith('\n') ? raw : raw + '\n');
+  fs.writeFileSync(path.join(conflictDir, name), content);
   console.log(`  ⚠ ${kind}两边内容不同：保留本地版本，远端版本存入 vault/_sync-conflicts/${name}`);
 }
 
@@ -108,10 +117,14 @@ function reconcile() {
       if (fs.existsSync(target)) {
         const localHash = crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex').slice(0, 20);
         if (localHash === hash) { skipped++; continue; }
-        // 附件双改：本地为准，远端版本明文（二进制）存副本留痕
+        // 附件双改：本地为准，远端版本明文（二进制）存副本留痕（同内容不重复留痕）
         const bin = gitShow(`origin/main:${a.file}`);
         const plain = lib.decryptAttachment(bin, password, enc.salt, hash);
         fs.mkdirSync(conflictDir, { recursive: true });
+        const base = a.name.replace(/\.[^.]+$/, '');
+        const dup = fs.readdirSync(conflictDir).some(f => f.startsWith(`${base}-远端-`)
+          && Buffer.compare(fs.readFileSync(path.join(conflictDir, f)), plain) === 0);
+        if (dup) { console.log(`  ⚠ 附件 ${a.name} 两边内容不同：此前已留痕，跳过`); continue; }
         const name = conflictName(conflictDir, a.name);
         fs.writeFileSync(path.join(conflictDir, name), plain);
         conflicted++;

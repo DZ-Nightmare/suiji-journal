@@ -41,7 +41,7 @@ node tools/import.js --text "随笔全文（可含 frontmatter）" --date 2026-1
 | 命令 | 作用 |
 | --- | --- |
 | `node tools/import.js <文件…> [--text 文本] [--date 日期] [--tags 标签] [--source 来源] [--title 标题] [--collection] [--push]` | 把随笔/图片/音频/文档收进 vault，自动改写附件引用并构建（`--push` 一步推送） |
-| `node tools/list.js add 书\|影 "标题" [参数…]` | 书影清单管理：add / status / progress / remark / link / promote / show / list（`--push` 一步推送） |
+| `node tools/list.js add 书\|影 "标题" [参数…]` | 书影清单管理：add / status / progress / remark / link / promote / rename / rm / show / list（`--push` 一步推送） |
 | `node tools/build.js` | 把 vault 明文加密成 `journal.enc.json` + `media/` |
 | `node tools/publish.js --message "…"` | 多设备闭环：拉取远端 → 对账补明文 → 构建 → 提交 → 推送（被拒自动重试） |
 | `node tools/sync.js [--pull]` | 从远端密文载荷长出本地 vault 缺的明文（只增不删；新设备冷启动/灾后恢复） |
