@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1793346708723';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1793349369072';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
