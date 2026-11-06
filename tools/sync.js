@@ -139,6 +139,7 @@ function reconcile() {
     for (const a of (e.attachments || [])) {
       if (!a.name || !a.aad || seen.has(a.file)) continue;
       seen.add(a.file);
+      if (tombSet.has(path.posix.join('Attachments', a.name))) { skipped++; continue; }  // 已删除/更名，不恢复
       const hash = a.aad.split(':')[1];
       const target = path.join(vaultDir, 'Attachments', a.name);
       if (fs.existsSync(target)) {
