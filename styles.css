@@ -800,6 +800,7 @@ body.sheet-open { overflow: hidden; }
 .reader-link-chip { margin: 0 8px 8px 0; padding: 8px 14px; min-height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--soft); color: var(--accent-dark); cursor: pointer; font-size: 13px; }
 .wiki-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .wiki-link:hover { color: var(--accent-dark); }
+.remote-img { display: block; max-width: 100%; width: auto; max-height: 420px; border-radius: 12px; margin: 10px 0; cursor: zoom-in; box-shadow: var(--shadow); }
 
 @media (max-width: 900px) {
   .lists-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }

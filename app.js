@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1793352523122';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1793952887109';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -319,6 +319,7 @@ function listMetaText(entry) {
 function listExcerpt(entry) {
   const clean = s => s
     .replace(/→ 已成随记.*/g, '')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
     .replace(/^>\s*/, '')
     .replace(/\*\*/g, '')
     .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_, p, l) => (l ? l.slice(1) : p.split('/').at(-1).replace(/\.[^.]+$/, '')))
@@ -401,19 +402,24 @@ function renderListCard(entry) {
   card.append(head);
 
   const cover = entry.attachments.find(a => a.mime.startsWith('image/'));
-  if (cover) {
-    const imageButton = button('', 'list-cover', () => showImage(cover));
+  const remoteCover = cover ? null : (entry.body.match(/!\[[^\]]*\]\((https?:[^)\s]+)\)/) || [])[1];
+  if (cover || remoteCover) {
+    const imageButton = button('', 'list-cover', () => cover ? showImage(cover) : showRemoteImage(remoteCover, `${entry.title}的封面`));
     imageButton.setAttribute('aria-label', `查看「${entry.title}」的封面`);
     const img = node('img');
     img.alt = `${entry.title}的封面`;
     img.loading = 'lazy';
     imageButton.append(img);
     card.append(imageButton);
-    loadMedia(cover)
-      .then(url => { if (img.isConnected && state.key) img.src = url; })
-      .catch(() => {
-        if (state.key) imageButton.replaceChildren(node('div', '封面暂时未能加载。', 'image-loading'));
-      });
+    if (remoteCover) {
+      img.src = remoteCover;
+    } else {
+      loadMedia(cover)
+        .then(url => { if (img.isConnected && state.key) img.src = url; })
+        .catch(() => {
+          if (state.key) imageButton.replaceChildren(node('div', '封面暂时未能加载。', 'image-loading'));
+        });
+    }
   }
 
   const title = node('h3', undefined, 'list-card-title');
@@ -628,6 +634,13 @@ async function showImage(attachment) {
   }
 }
 
+/* 外链图片（官方海报）：直接进灯箱，浏览器加载 */
+function showRemoteImage(url, alt) {
+  $('lightbox-image').src = url;
+  $('lightbox-image').alt = alt || '配图';
+  $('lightbox').showModal();
+}
+
 /* ---------- 附件全屏浮层 ---------- */
 function openAttachmentOverlay(attachment, url) {
   $('overlay-name').textContent = attachment.name;
@@ -655,14 +668,26 @@ function resolveWiki(target) {
   return { kind: hit.anchor.startsWith('list-') ? 'list' : 'note', anchor: hit.anchor };
 }
 function inline(text, target) {
-  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|!?\[\[[^\]]+\]\]|\[[^\]]+\]\([^\s)]+\))/g;
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|!\[[^\]]*\]\([^\s)]+\)|!?\[\[[^\]]+\]\]|\[[^\]]+\]\([^\s)]+\))/g;
   let start = 0;
   for (const match of text.matchAll(pattern)) {
     target.append(document.createTextNode(text.slice(start, match.index)));
     const value = match[0];
     if (value.startsWith('`')) target.append(node('code', value.slice(1, -1)));
     else if (value.startsWith('**')) target.append(node('strong', value.slice(2, -2)));
-    else if (value.includes('[[')) {
+    else if (value.startsWith('![')) {
+      // 外链图片（官方海报等）：浏览器直接加载显示
+      const m = value.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/);
+      if (m && /^https?:\/\//i.test(m[2])) {
+        const img = node('img', undefined, 'remote-img');
+        img.src = m[2];
+        img.alt = m[1] || '配图';
+        img.loading = 'lazy';
+        target.append(img);
+      } else {
+        target.append(document.createTextNode(value));
+      }
+    } else if (value.includes('[[')) {
       const inside = value.replace(/^!?\[\[|\]\]$/g, '');
       const [path, label] = inside.split('|');
       const text = (label || path.split('/').at(-1).replace(/\.[^.]+$/, '')).trim();
