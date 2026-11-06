@@ -44,7 +44,7 @@ function main() {
     const orphans = fs.readdirSync(attachDir).filter(f => !f.startsWith('.') && !referenced.has(f));
     for (const f of orphans) {
       console.warn(`  ⚠ 孤儿附件（未被任何条目挂载，本次不会进入加密包）：Attachments/${f}`);
-      console.warn(`     挂载方式二选一：正文写 [[Attachments/${f}]] 或 frontmatter 加 attachments: [${f}]`);
+      console.warn(`     唯一挂载方式：在条目 frontmatter 加 attachments: [${f}]（正文写引用是旧规范，已废弃）`);
     }
   }
 
