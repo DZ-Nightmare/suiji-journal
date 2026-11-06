@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1793977486514';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1793980897185';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -699,24 +699,25 @@ function inline(text, target, attachments) {
       const [path, label] = inside.split('|');
       const text = (label || path.split('/').at(-1).replace(/\.[^.]+$/, '')).trim();
       const dest = resolveWiki(path, attachments);
-      if (dest?.kind === 'att-image') {
-        // 正文引用图片附件：就地内嵌（解密后显示）
-        const img = node('img', undefined, 'remote-img');
-        img.alt = label || dest.att.name;
-        img.loading = 'lazy';
-        target.append(img);
-        loadMedia(dest.att)
-          .then(url => { if (img.isConnected && state.key) img.src = url; })
-          .catch(() => { if (img.isConnected && state.key) img.alt = `图片加载失败：${dest.att.name}`; });
-      } else if (dest?.kind === 'att-file') {
-        // 正文引用文件附件：渲染为可下载链接
-        const a = node('a', text, 'attachment-download');
-        target.append(a);
-        loadMedia(dest.att)
-          .then(url => {
-            if (a.isConnected && state.key) { a.href = url; a.download = dest.att.name; }
-          })
-          .catch(() => { if (a.isConnected && state.key) a.textContent = `${text}（加载失败）`; });
+      if (dest?.kind === 'att-image' || dest?.kind === 'att-file') {
+        // 正文引用附件：渲染为轻量标签（附件统一在底部附件区展示，正文不内嵌）。
+        // 点击图片开灯箱，文件直接下载，HTML 开全屏浮层。
+        const isImage = dest.kind === 'att-image';
+        const icon = isImage ? '🖼' : '📎';
+        const b = button(`${icon} ${text}`, 'att-ref', () => {
+          if (isImage) showImage(dest.att);
+          else if (dest.att.mime === 'text/html') {
+            loadMedia(dest.att).then(url => openAttachmentOverlay(dest.att, url)).catch(() => toast('附件暂时无法打开。'));
+          } else {
+            loadMedia(dest.att).then(url => {
+              const a = node('a');
+              a.href = url;
+              a.download = dest.att.name;
+              a.click();
+            }).catch(() => toast('附件暂时无法打开。'));
+          }
+        });
+        target.append(b);
       } else if (dest) {
         const open = () => (dest.kind === 'list' ? openList : openNote)(dest.anchor);
         target.append(button(text, 'wiki-link', open));

@@ -801,6 +801,15 @@ body.sheet-open { overflow: hidden; }
 .wiki-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .wiki-link:hover { color: var(--accent-dark); }
 .remote-img { display: block; max-width: 100%; width: auto; max-height: 420px; border-radius: 12px; margin: 10px 0; cursor: zoom-in; box-shadow: var(--shadow); }
+/* 正文附件引用：轻量标签（不内嵌图片，附件统一在底部附件区展示） */
+.att-ref {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 10px; margin: 0 2px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--soft);
+  color: var(--accent-dark); font-size: 12.5px; cursor: pointer;
+  vertical-align: middle;
+}
+.att-ref:hover { border-color: var(--accent); }
 
 @media (max-width: 900px) {
   .lists-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
