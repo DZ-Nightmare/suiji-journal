@@ -69,6 +69,12 @@ function reconcile() {
 
   const payload = lib.decryptPayload(enc, password);
 
+  // 同步状态：记录各条目上次对账时的远端版本哈希（本地元数据，不入载荷）。
+  // 用于区分三种情形：一致跳过 / 本地正常演进（静默）/ 远端单边修改（接受）/ 真双改（留痕）。
+  const stateFile = path.join(vaultDir, '.sync-state.json');
+  const syncState = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : {};
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex');
+
   // 墓碑合并：远端删除意图并入本地（跨设备传播），并对本地已存在的墓碑文件生效
   const tombFile = path.join(vaultDir, '.tombstones');
   const tombSet = new Set([
@@ -96,12 +102,33 @@ function reconcile() {
     if (!fs.existsSync(target)) {
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, raw);
+      syncState[e.rel] = sha(e.raw);
       restored++;
       console.log(`✓ 恢复${e.kind}明文：${e.rel}（${e.title || '无题'}）`);
       continue;
     }
     const cur = fs.readFileSync(target, 'utf8');
-    if (cur === raw || cur === e.raw) { skipped++; continue; }
+    const remoteHash = sha(e.raw);
+    if (cur === raw || cur === e.raw) {
+      syncState[e.rel] = remoteHash;
+      skipped++;
+      continue;
+    }
+    if (syncState[e.rel] === remoteHash) {
+      // 远端自上次对账没变、本地变了：本地正常演进（待推送），不吵
+      syncState[e.rel] = remoteHash;
+      skipped++;
+      continue;
+    }
+    if (syncState[e.rel] === sha(cur)) {
+      // 本地没动过、远端变了：别的设备单边修改 → 接受远端版本
+      fs.writeFileSync(target, raw);
+      syncState[e.rel] = remoteHash;
+      console.log(`✓ 同步${e.kind}更新（远端新版本）：${e.rel}（${e.title || '无题'}）`);
+      continue;
+    }
+    // 真双改：本地为准，远端版本留痕
+    syncState[e.rel] = remoteHash;
     conflicted++;
     conflictWrite(conflictDir, e.rel, e.raw, e.kind);
   }
@@ -116,14 +143,24 @@ function reconcile() {
       const target = path.join(vaultDir, 'Attachments', a.name);
       if (fs.existsSync(target)) {
         const localHash = crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex').slice(0, 20);
-        if (localHash === hash) { skipped++; continue; }
-        // 附件双改：本地为准，远端版本明文（二进制）存副本留痕（同内容不重复留痕）
+        const attKey = `att:${a.name}`;
+        if (localHash === hash) { syncState[attKey] = hash; skipped++; continue; }
+        if (syncState[attKey] === hash) { syncState[attKey] = hash; skipped++; continue; }  // 远端没变本地换图：正常演进
         const bin = gitShow(`origin/main:${a.file}`);
         const plain = lib.decryptAttachment(bin, password, enc.salt, hash);
+        if (syncState[attKey] === localHash) {
+          // 本地没动、远端换图：接受远端版本
+          fs.writeFileSync(target, plain);
+          syncState[attKey] = hash;
+          console.log(`✓ 同步附件更新（远端新版本）：${a.name}`);
+          continue;
+        }
+        // 真双改：本地为准，远端版本明文（二进制）存副本留痕（同内容不重复留痕）
         fs.mkdirSync(conflictDir, { recursive: true });
         const base = a.name.replace(/\.[^.]+$/, '');
         const dup = fs.readdirSync(conflictDir).some(f => f.startsWith(`${base}-远端-`)
           && Buffer.compare(fs.readFileSync(path.join(conflictDir, f)), plain) === 0);
+        syncState[attKey] = hash;
         if (dup) { console.log(`  ⚠ 附件 ${a.name} 两边内容不同：此前已留痕，跳过`); continue; }
         const name = conflictName(conflictDir, a.name);
         fs.writeFileSync(path.join(conflictDir, name), plain);
@@ -140,6 +177,7 @@ function reconcile() {
     }
   }
 
+  fs.writeFileSync(stateFile, JSON.stringify(syncState, null, 1));
   console.log(`✓ 对账完成：恢复 ${restored} 篇随记/书影、${restoredAtt} 个附件；跳过 ${skipped} 项；冲突留痕 ${conflicted} 项；墓碑生效 ${tombApplied} 项`);
   if (conflicted) console.log('⚠ 有冲突副本待人工合并（vault/_sync-conflicts/，不参与构建）');
 }
