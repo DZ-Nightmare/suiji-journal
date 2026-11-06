@@ -36,6 +36,18 @@ function main() {
   const finalNotes = finalize(notes);
   const finalLists = finalize(lists);
 
+  // 孤儿附件校验：vault/Attachments 里存在但没被任何条目挂载的文件会静默丢失
+  //（不进载荷、media bin 被清理）——大声警告，防止“手工拼载荷”的附件被全量重建冲掉
+  const attachDir = path.join(lib.ROOT, config.vault || 'vault', 'Attachments');
+  if (fs.existsSync(attachDir)) {
+    const referenced = new Set([...finalNotes, ...finalLists].flatMap(n => n.attachments.map(a => a.name)));
+    const orphans = fs.readdirSync(attachDir).filter(f => !f.startsWith('.') && !referenced.has(f));
+    for (const f of orphans) {
+      console.warn(`  ⚠ 孤儿附件（未被任何条目挂载，本次不会进入加密包）：Attachments/${f}`);
+      console.warn(`     挂载方式二选一：正文写 [[Attachments/${f}]] 或 frontmatter 加 attachments: [${f}]`);
+    }
+  }
+
   // 清理不再被引用的加密附件
   for (const file of fs.readdirSync(mediaDir)) {
     if (!keep.has(file)) fs.unlinkSync(path.join(mediaDir, file));

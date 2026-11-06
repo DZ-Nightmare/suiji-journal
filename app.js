@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1793953655097';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1793967553155';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -658,16 +658,23 @@ $('overlay-close').addEventListener('click', closeAttachmentOverlay);
 $('attachment-overlay').addEventListener('click', e => { if (e.target === $('attachment-overlay')) closeAttachmentOverlay(); });
 
 /* ---------- Markdown 渲染（随记子集） ---------- */
-/* wiki 链接解析：[[01-Journals/…]] → 随记、[[03-Lists/…]] → 书影条目；解析不到按纯文本 */
-function resolveWiki(target) {
+/* wiki 链接解析：[[Attachments/…]] → 条目附件（图片内嵌/文件链接）、
+   [[01-Journals/…]] → 随记、[[03-Lists/…]] → 书影条目；解析不到按纯文本 */
+function resolveWiki(target, attachments) {
   const t = String(target).trim().replace(/\.md$/, '');
-  if (!t || t.startsWith('Attachments/')) return null;
+  if (!t) return null;
+  if (t.startsWith('Attachments/')) {
+    const name = t.slice('Attachments/'.length);
+    const att = (attachments || []).find(a => a.name === name);
+    if (!att) return null;
+    return att.mime.startsWith('image/') ? { kind: 'att-image', att } : { kind: 'att-file', att };
+  }
   const hit = state.notes.find(n => (n.rel || '').replace(/\.md$/, '') === t)
     || state.lists.find(n => (n.rel || '').replace(/\.md$/, '') === t);
   if (!hit) return null;
   return { kind: hit.anchor.startsWith('list-') ? 'list' : 'note', anchor: hit.anchor };
 }
-function inline(text, target) {
+function inline(text, target, attachments) {
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|!\[[^\]]*\]\([^\s)]+\)|!?\[\[[^\]]+\]\]|\[[^\]]+\]\([^\s)]+\))/g;
   let start = 0;
   for (const match of text.matchAll(pattern)) {
@@ -691,8 +698,26 @@ function inline(text, target) {
       const inside = value.replace(/^!?\[\[|\]\]$/g, '');
       const [path, label] = inside.split('|');
       const text = (label || path.split('/').at(-1).replace(/\.[^.]+$/, '')).trim();
-      const dest = resolveWiki(path);
-      if (dest) {
+      const dest = resolveWiki(path, attachments);
+      if (dest?.kind === 'att-image') {
+        // 正文引用图片附件：就地内嵌（解密后显示）
+        const img = node('img', undefined, 'remote-img');
+        img.alt = label || dest.att.name;
+        img.loading = 'lazy';
+        target.append(img);
+        loadMedia(dest.att)
+          .then(url => { if (img.isConnected && state.key) img.src = url; })
+          .catch(() => { if (img.isConnected && state.key) img.alt = `图片加载失败：${dest.att.name}`; });
+      } else if (dest?.kind === 'att-file') {
+        // 正文引用文件附件：渲染为可下载链接
+        const a = node('a', text, 'attachment-download');
+        target.append(a);
+        loadMedia(dest.att)
+          .then(url => {
+            if (a.isConnected && state.key) { a.href = url; a.download = dest.att.name; }
+          })
+          .catch(() => { if (a.isConnected && state.key) a.textContent = `${text}（加载失败）`; });
+      } else if (dest) {
         const open = () => (dest.kind === 'list' ? openList : openNote)(dest.anchor);
         target.append(button(text, 'wiki-link', open));
       } else {
@@ -715,7 +740,7 @@ function inline(text, target) {
   target.append(document.createTextNode(text.slice(start)));
 }
 
-function markdown(text) {
+function markdown(text, attachments) {
   const root = node('div');
   const lines = text.split(/\r?\n/);
   let i = 0;
@@ -736,7 +761,7 @@ function markdown(text) {
     if (/^#{1,3}\s/.test(line)) {
       const marks = line.match(/^(#+)\s/)[1].length;
       const heading = node(marks === 1 ? 'h2' : `h${marks}`);
-      inline(line.slice(marks + 1), heading);
+      inline(line.slice(marks + 1), heading, attachments);
       root.append(heading);
       i++;
       continue;
@@ -745,7 +770,7 @@ function markdown(text) {
       const block = node('blockquote');
       while (i < lines.length && /^\s*>/.test(lines[i])) {
         const p = node('p');
-        inline(lines[i++].replace(/^\s*>\s?/, ''), p);
+        inline(lines[i++].replace(/^\s*>\s?/, ''), p, attachments);
         block.append(p);
       }
       root.append(block);
@@ -755,7 +780,7 @@ function markdown(text) {
       const list = node('ul');
       while (i < lines.length && /^\s*[-*]\s/.test(lines[i])) {
         const item = node('li');
-        inline(lines[i++].replace(/^\s*[-*]\s/, ''), item);
+        inline(lines[i++].replace(/^\s*[-*]\s/, ''), item, attachments);
         list.append(item);
       }
       root.append(list);
@@ -764,7 +789,7 @@ function markdown(text) {
     const p = node('p');
     const block = [];
     while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|>|[-*]\s|```)/.test(lines[i])) block.push(lines[i++]);
-    inline(block.join('\n'), p);
+    inline(block.join('\n'), p, attachments);
     root.append(p);
   }
   return root;
@@ -781,7 +806,7 @@ function openNote(anchor, fromHash) {
   $('reader-title').textContent = note.title;
   $('reader-tags').replaceChildren(...note.tags.map(t => node('span', t)));
   $('reader-meta').hidden = true;
-  $('reader-body').replaceChildren(markdown(note.body));
+  $('reader-body').replaceChildren(markdown(note.body, note.attachments));
   $('download-note').textContent = '下载这条随记 ↓';
   renderAttachments($('reader-attachments'), note.attachments, anchor, () => openNote(anchor, true));
 
@@ -811,7 +836,7 @@ function openList(anchor, fromHash) {
     entry.finished ? `完成 ${entry.finished}` : '',
   ].filter(Boolean).join(' · ');
   $('reader-meta').hidden = false;
-  $('reader-body').replaceChildren(markdown(entry.body));
+  $('reader-body').replaceChildren(markdown(entry.body, entry.attachments));
   $('download-note').textContent = '下载这条记录 ↓';
   renderAttachments($('reader-attachments'), entry.attachments, anchor, () => openList(anchor, true));
   // 正文「关联」里的 wiki 链接已渲染为可点按钮；这里补其它书影指向本条的回链
