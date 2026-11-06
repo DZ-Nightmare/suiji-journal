@@ -20,13 +20,15 @@ function makeGit() {
   }).trim();
 }
 
-/* index.html / app.js 的冲突只允许是版本号时间戳行（build 注入），否则交给人 */
+/* 远端对该文件的改动是否只是版本号时间戳行（build 注入）——
+   是则本地为准（远端无真实改动），否则交给人判断 */
 function onlyStampsDiffer(git, file) {
   const norm = s => s
     .replace(/\?v=\d+/g, '?v=STAMP')
     .replace(/const VIEWER_VER = '[^']*';/, "const VIEWER_VER = 'STAMP';");
   try {
-    return norm(git('show', `HEAD:${file}`)) === norm(git('show', `origin/main:${file}`));
+    const base = git('merge-base', 'HEAD', 'origin/main');
+    return norm(git('show', `origin/main:${file}`)) === norm(git('show', `${base}:${file}`));
   } catch {
     return false;
   }
@@ -44,13 +46,14 @@ function mergeRemote(git) {
     throw new Error('合并失败但未检测到冲突，请手动 git merge origin/main 查看' + (detail ? `（${detail.split('\n')[0]}）` : ''));
   }
   for (const f of conflicted) {
-    const ok = GENERATED.test(f) || ((/^index\.html$|^app\.js$/.test(f)) && onlyStampsDiffer(git, f));
-    if (!ok) throw new Error(`合并冲突需人工处理（非构建产物）：${f}。请手动 git merge origin/main 解决后重试。`);
+    const ok = GENERATED.test(f) || ((/^index\.html$|^app\.js$|^styles\.css$|^skill\/SKILL\.md$/.test(f)) && onlyStampsDiffer(git, f));
+    if (!ok) throw new Error(`合并冲突需人工处理（远端有真实改动）：${f}。请手动 git merge origin/main 解决后重试。`);
   }
-  for (const f of conflicted) git('checkout', '--theirs', '--', f);
+  // 远端无真实改动（纯时间戳/构建产物）：本地为准，build 随后全量重造产物
+  for (const f of conflicted) git('checkout', '--ours', '--', f);
   for (const f of conflicted) git('add', '--', f);
   git('commit', '--no-edit');
-  console.log(`· 构建产物冲突已自动取远端（随后对账重建）：${conflicted.join('、')}`);
+  console.log(`· 时间戳/产物级冲突已自动取本地版（随后对账重建）：${conflicted.join('、')}`);
 }
 
 function main() {
