@@ -643,6 +643,22 @@ function aiExcerpt(entry) {
   return clean(line || '');
 }
 
+/* 卡片封面位置的「简洁描述」：why 一句话缘由（无 why 时用最新感想兜底）。
+   详细描述（感想时间流）只在点开条目后的详情里。 */
+function aiBrief(entry) {
+  const clean = s => s
+    .replace(/→ 已成随记.*/g, '')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(/\*\*/g, '')
+    .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_, p, l) => (l ? l.slice(1) : p.split('/').at(-1).replace(/\.[^.]+$/, '')))
+    .trim().slice(0, 72);
+  if (entry.why) return clean(entry.why);
+  const last = entry.remarks.length ? entry.remarks[entry.remarks.length - 1].text : '';
+  if (last.trim()) return clean(last);
+  const line = entry.body.split(/\r?\n/).find(l => l.trim() && !/^#{1,3}\s/.test(l.trim()));
+  return clean(line || '');
+}
+
 function setupAIFilters() {
   const chips = (container, options, key) => {
     $(container).replaceChildren(...options.map(([value, label]) => {
@@ -708,7 +724,7 @@ function renderAICard(entry) {
   const card = node('article', undefined, 'list-card');
   card.id = entry.anchor;
 
-  // 头：状态徽章（唯一彩色元素，可点弹状态菜单）+ 类型小字（安静的元信息）
+  // 头：状态徽章（可点弹状态菜单）+ 类型小字 —— 与书影卡片同构
   const head = node('div', undefined, 'list-card-head');
   const badge = node('button', aiStatusText(entry), `list-badge ai-${entry.status} ai-status-btn`);
   badge.type = 'button';
@@ -717,20 +733,24 @@ function renderAICard(entry) {
   head.append(badge, node('span', AI_TYPE_LABEL[entry.type] || '项目', 'list-kind'));
   card.append(head);
 
+  // 封面位置：简洁描述块（对应书影的海报位；详细描述只在详情页）
+  const brief = aiBrief(entry);
+  if (brief) {
+    const briefBox = node('div', brief, 'ai-brief');
+    briefBox.setAttribute('aria-label', '简洁描述');
+    card.append(briefBox);
+  }
+
   // 标题（点击进详情）
   const title = node('h3', undefined, 'list-card-title');
   title.append(button(entry.title, 'card-title', () => openAI(entry.anchor)));
   card.append(title);
 
-  // 作者 + 日期，一行安静小字
+  // 入库存日期，一行安静小字
   const meta = aiMetaText(entry);
   if (meta) card.append(node('p', meta, 'list-card-meta'));
 
-  // 一句话（缘由或最新感想），信息主线
-  const excerpt = aiExcerpt(entry);
-  if (excerpt) card.append(node('p', excerpt, 'card-excerpt'));
-
-  // 底：可点击分类 tag（点击筛选）
+  // 可点击分类 tag（点击筛选）
   const tags = node('div', undefined, 'card-tags');
   entry.tags.slice(0, 3).forEach(tag => tags.append(button('# ' + tag, 'card-tag', () => {
     state.aiFilter.tag = state.aiFilter.tag === tag ? '' : tag;
@@ -746,6 +766,7 @@ function renderAICard(entry) {
     a.rel = 'noreferrer noopener';
     card.append(a);
   }
+  card.append(button('翻开条目 ↗', 'read-more', () => openAI(entry.anchor)));
   return card;
 }
 
