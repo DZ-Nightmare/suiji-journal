@@ -410,7 +410,11 @@ function renderListCard(entry) {
   card.id = entry.anchor;
 
   const head = node('div', undefined, 'list-card-head');
-  head.append(node('span', listStatusText(entry), `list-badge list-${entry.status}`),
+  const badge = node('button', listStatusText(entry), `list-badge list-${entry.status} ai-status-btn`);
+  badge.type = 'button';
+  badge.title = '点击修改状态';
+  badge.addEventListener('click', e => { e.stopPropagation(); openListStatusMenu(entry, badge); });
+  head.append(badge,
     node('span', entry.type === 'movie' ? '影' : '书', 'list-kind'));
   card.append(head);
 
@@ -620,11 +624,8 @@ function aiStatusText(entry) {
 }
 
 function aiMetaText(entry) {
-  const bits = [];
-  if (entry.creator) bits.push(entry.creator);
   const added = `入库存于 ${Number(entry.added.slice(5, 7))} 月 ${Number(entry.added.slice(8, 10))} 日`;
-  bits.push(added);
-  return bits.join(' · ');
+  return added;
 }
 
 function aiExcerpt(entry) {
@@ -729,28 +730,35 @@ function renderAICard(entry) {
   const excerpt = aiExcerpt(entry);
   if (excerpt) card.append(node('p', excerpt, 'card-excerpt'));
 
-  // 底：链接胶囊（可点开新标签）… 标签仅在有 url 时贴在最底
-  const bottom = node('div', undefined, 'ai-card-bottom');
+  // 底：可点击分类 tag（点击筛选）
+  const tags = node('div', undefined, 'card-tags');
+  entry.tags.slice(0, 3).forEach(tag => tags.append(button('# ' + tag, 'card-tag', () => {
+    state.aiFilter.tag = state.aiFilter.tag === tag ? '' : tag;
+    renderAI();
+  })));
+  card.append(tags);
+
+  // 链接胶囊（可点开新标签）
   if (entry.url && /^https?:\/\//i.test(entry.url)) {
     const a = node('a', entry.url.replace(/^https?:\/\//, '').replace(/\/$/, ''), 'ai-url');
     a.href = entry.url;
     a.target = '_blank';
     a.rel = 'noreferrer noopener';
-    bottom.append(a);
+    card.append(a);
   }
-  card.append(bottom);
   return card;
 }
 
 /* 状态菜单：网页是只读加密站（vault 在本机、载荷全加密），状态无法在浏览器内直接落盘。
    诚实且可用的交互：点状态弹菜单，选一个状态 → 复制一句话给随记 AI，说出去就改好了。 */
-function openAIStatusMenu(entry, badge) {
+/* 状态菜单通用外壳：labels 形如 { value: [标签, 说明] }，commandFor 生成复制指令 */
+function openStatusMenu(badge, labels, current, commandFor) {
   const menu = node('div', undefined, 'ai-status-menu');
   menu.setAttribute('role', 'menu');
   menu.append(node('p', '修改状态？站点是加密只读的，选中会复制一句话给随记 AI 完成落盘：', 'ai-status-menu-hint'));
-  for (const [value, label] of Object.entries(AI_STATUS_LABEL)) {
-    const item = button(`${label}${entry.status === value ? ' · 当前' : ''}`, 'ai-status-item', () => {
-      const command = `随记：把 AI 库的《${entry.title}》标记为「${label}」`;
+  for (const [value, [label, desc]] of Object.entries(labels)) {
+    const item = button(`${label}${current === value ? ' · 当前' : ''}`, 'ai-status-item', () => {
+      const command = commandFor(label);
       try {
         navigator.clipboard.writeText(command);
         toast(`已复制：${command}`);
@@ -759,11 +767,8 @@ function openAIStatusMenu(entry, badge) {
       }
       menu.remove();
     });
-    if (entry.status === value) item.classList.add('current');
-    const desc = AI_STATUS_DESC[value];
-    if (desc) {
-      item.append(node('span', desc, 'ai-status-item-desc'));
-    }
+    if (current === value) item.classList.add('current');
+    if (desc) item.append(node('span', desc, 'ai-status-item-desc'));
     menu.append(item);
   }
   menu.append(button('取消', 'ai-status-cancel', () => menu.remove()));
@@ -777,6 +782,23 @@ function openAIStatusMenu(entry, badge) {
     const close = e => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
     document.addEventListener('click', close);
   }, 0);
+}
+
+const AI_STATUS_MENU = Object.fromEntries(Object.entries(AI_STATUS_LABEL).map(([v, label]) => [v, [label, AI_STATUS_DESC[v]]]));
+function openAIStatusMenu(entry, badge) {
+  openStatusMenu(badge, AI_STATUS_MENU, entry.status,
+    label => `随记：把 AI 库的《${entry.title}》标记为「${label}」`);
+}
+
+function openListStatusMenu(entry, badge) {
+  const isMovie = entry.type === 'movie';
+  const labels = {
+    want: [isMovie ? '想看' : '想读', '收藏了，还没开始'],
+    doing: [isMovie ? '在看' : '在读', '正在进行中'],
+    done: [isMovie ? '看完' : '读完', '完成了'],
+  };
+  openStatusMenu(badge, labels, entry.status,
+    label => `随记：把书影清单的《${entry.title}》标记为「${label}」`);
 }
 
 function openAI(anchor, fromHash) {
