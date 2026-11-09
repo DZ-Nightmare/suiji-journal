@@ -612,8 +612,8 @@ function moveCalendar(delta) {
 
 /* ---------- AI 库渲染 ---------- */
 const AI_TYPE_LABEL = { project: '项目', skill: '技能', tool: '工具', article: '文章' };
-const AI_TYPE_CHAR = { project: '项', skill: '技', tool: '具', article: '文' };
 const AI_STATUS_LABEL = { want: '想试', trying: '在试', kept: '已用', dropped: '淘汰' };
+const AI_STATUS_DESC = { want: '收藏了，还没动手', trying: '正在试用', kept: '沉淀进工具箱', dropped: '试过不合适' };
 
 function aiStatusText(entry) {
   return AI_STATUS_LABEL[entry.status] || AI_STATUS_LABEL.want;
@@ -622,7 +622,8 @@ function aiStatusText(entry) {
 function aiMetaText(entry) {
   const bits = [];
   if (entry.creator) bits.push(entry.creator);
-  bits.push(`入库存于 ${entry.added.slice(5, 7)}.${entry.added.slice(8, 10)}`);
+  const added = `入库存于 ${Number(entry.added.slice(5, 7))} 月 ${Number(entry.added.slice(8, 10))} 日`;
+  bits.push(added);
   return bits.join(' · ');
 }
 
@@ -706,52 +707,76 @@ function renderAICard(entry) {
   const card = node('article', undefined, 'list-card');
   card.id = entry.anchor;
 
+  // 头：状态徽章（唯一彩色元素，可点弹状态菜单）+ 类型小字（安静的元信息）
   const head = node('div', undefined, 'list-card-head');
-  head.append(node('span', aiStatusText(entry), `list-badge ai-${entry.status}`),
-    node('span', `${AI_TYPE_CHAR[entry.type] || '项'} · ${AI_TYPE_LABEL[entry.type] || '项目'}`, 'list-kind'));
+  const badge = node('button', aiStatusText(entry), `list-badge ai-${entry.status} ai-status-btn`);
+  badge.type = 'button';
+  badge.title = '点击修改状态';
+  badge.addEventListener('click', e => { e.stopPropagation(); openAIStatusMenu(entry, badge); });
+  head.append(badge, node('span', AI_TYPE_LABEL[entry.type] || '项目', 'list-kind'));
   card.append(head);
 
-  const cover = entry.attachments.find(a => a.mime.startsWith('image/'));
-  if (cover) {
-    const imageButton = button('', 'list-cover', () => showImage(cover));
-    imageButton.setAttribute('aria-label', `查看「${entry.title}」的配图`);
-    const img = node('img');
-    img.alt = `${entry.title}的配图`;
-    img.loading = 'lazy';
-    imageButton.append(img);
-    card.append(imageButton);
-    loadMedia(cover)
-      .then(url => { if (img.isConnected && state.key) img.src = url; })
-      .catch(() => {
-        if (state.key) imageButton.replaceChildren(node('div', '配图暂时未能加载。', 'image-loading'));
-      });
-  }
-
+  // 标题（点击进详情）
   const title = node('h3', undefined, 'list-card-title');
   title.append(button(entry.title, 'card-title', () => openAI(entry.anchor)));
   card.append(title);
 
+  // 作者 + 日期，一行安静小字
+  const meta = aiMetaText(entry);
+  if (meta) card.append(node('p', meta, 'list-card-meta'));
+
+  // 一句话（缘由或最新感想），信息主线
+  const excerpt = aiExcerpt(entry);
+  if (excerpt) card.append(node('p', excerpt, 'card-excerpt'));
+
+  // 底：链接胶囊（可点开新标签）… 标签仅在有 url 时贴在最底
+  const bottom = node('div', undefined, 'ai-card-bottom');
   if (entry.url && /^https?:\/\//i.test(entry.url)) {
     const a = node('a', entry.url.replace(/^https?:\/\//, '').replace(/\/$/, ''), 'ai-url');
     a.href = entry.url;
     a.target = '_blank';
     a.rel = 'noreferrer noopener';
-    card.append(a);
+    bottom.append(a);
   }
-
-  const meta = aiMetaText(entry);
-  if (meta) card.append(node('p', meta, 'list-card-meta'));
-  const excerpt = aiExcerpt(entry);
-  if (excerpt) card.append(node('p', excerpt, 'card-excerpt'));
-
-  const tags = node('div', undefined, 'card-tags');
-  entry.tags.slice(0, 3).forEach(tag => tags.append(button('# ' + tag, 'card-tag', () => {
-    state.aiFilter.tag = state.aiFilter.tag === tag ? '' : tag;
-    renderAI();
-  })));
-  card.append(tags);
-  card.append(button('打开条目 ↗', 'read-more', () => openAI(entry.anchor)));
+  card.append(bottom);
   return card;
+}
+
+/* 状态菜单：网页是只读加密站（vault 在本机、载荷全加密），状态无法在浏览器内直接落盘。
+   诚实且可用的交互：点状态弹菜单，选一个状态 → 复制一句话给随记 AI，说出去就改好了。 */
+function openAIStatusMenu(entry, badge) {
+  const menu = node('div', undefined, 'ai-status-menu');
+  menu.setAttribute('role', 'menu');
+  menu.append(node('p', '修改状态？站点是加密只读的，选中会复制一句话给随记 AI 完成落盘：', 'ai-status-menu-hint'));
+  for (const [value, label] of Object.entries(AI_STATUS_LABEL)) {
+    const item = button(`${label}${entry.status === value ? ' · 当前' : ''}`, 'ai-status-item', () => {
+      const command = `随记：把 AI 库的《${entry.title}》标记为「${label}」`;
+      try {
+        navigator.clipboard.writeText(command);
+        toast(`已复制：${command}`);
+      } catch {
+        toast(`请复制这句话：${command}`);
+      }
+      menu.remove();
+    });
+    if (entry.status === value) item.classList.add('current');
+    const desc = AI_STATUS_DESC[value];
+    if (desc) {
+      item.append(node('span', desc, 'ai-status-item-desc'));
+    }
+    menu.append(item);
+  }
+  menu.append(button('取消', 'ai-status-cancel', () => menu.remove()));
+  document.body.append(menu);
+  const rect = badge.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
+  menu.style.top = (rect.bottom + 6) + 'px';
+  // 点击菜单外关闭
+  setTimeout(() => {
+    const close = e => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
 }
 
 function openAI(anchor, fromHash) {
