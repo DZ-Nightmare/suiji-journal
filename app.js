@@ -724,7 +724,12 @@ function renderAICard(entry) {
   const card = node('article', undefined, 'list-card');
   card.id = entry.anchor;
 
-  // 头：状态徽章（可点弹状态菜单）+ 类型小字 —— 与书影卡片同构
+  // 1) 标题在最上：身份锚点，第一眼读到「这是什么」
+  const title = node('h3', undefined, 'list-card-title');
+  title.append(button(entry.title, 'card-title', () => openAI(entry.anchor)));
+  card.append(title);
+
+  // 2) 状态徽章（可点弹状态菜单）+ 类型小字：跟在身份后面补充属性
   const head = node('div', undefined, 'list-card-head');
   const badge = node('button', aiStatusText(entry), `list-badge ai-${entry.status} ai-status-btn`);
   badge.type = 'button';
@@ -733,7 +738,7 @@ function renderAICard(entry) {
   head.append(badge, node('span', AI_TYPE_LABEL[entry.type] || '项目', 'list-kind'));
   card.append(head);
 
-  // 封面位置：简洁描述块（对应书影的海报位；详细描述只在详情页）
+  // 3) 简洁描述块：摘要在标题之下（标准内容卡片层级；详细描述只在详情页）
   const brief = aiBrief(entry);
   if (brief) {
     const briefBox = node('div', brief, 'ai-brief');
@@ -741,16 +746,11 @@ function renderAICard(entry) {
     card.append(briefBox);
   }
 
-  // 标题（点击进详情）
-  const title = node('h3', undefined, 'list-card-title');
-  title.append(button(entry.title, 'card-title', () => openAI(entry.anchor)));
-  card.append(title);
-
-  // 入库存日期，一行安静小字
+  // 4) 入库存日期，一行安静小字
   const meta = aiMetaText(entry);
   if (meta) card.append(node('p', meta, 'list-card-meta'));
 
-  // 可点击分类 tag（点击筛选）
+  // 5) 可点击分类 tag（点击筛选）
   const tags = node('div', undefined, 'card-tags');
   entry.tags.slice(0, 3).forEach(tag => tags.append(button('# ' + tag, 'card-tag', () => {
     state.aiFilter.tag = state.aiFilter.tag === tag ? '' : tag;
@@ -758,7 +758,7 @@ function renderAICard(entry) {
   })));
   card.append(tags);
 
-  // 链接胶囊（可点开新标签）
+  // 6) 链接胶囊（可点开新标签）
   if (entry.url && /^https?:\/\//i.test(entry.url)) {
     const a = node('a', entry.url.replace(/^https?:\/\//, '').replace(/\/$/, ''), 'ai-url');
     a.href = entry.url;
