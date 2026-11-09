@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1793991030436" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1793991030436">
-  <link rel="stylesheet" href="styles.css?v=1793991030436">
-  <script src="app.js?v=1793991030436" defer></script>
+  <link rel="icon" href="icon.svg?v=1794213634702" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1794213634702">
+  <link rel="stylesheet" href="styles.css?v=1794213634702">
+  <script src="app.js?v=1794213634702" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#timeline">跳到时间轴</a>
@@ -78,6 +78,7 @@
     <p class="side-caption">我的小小宇宙</p>
     <button class="nav-item active" id="all-notes"><span aria-hidden="true">◷</span> 全部随记 <b id="nav-count">0</b></button>
     <button class="nav-item" id="list-nav" hidden><span aria-hidden="true">▤</span> 书影清单 <b id="list-count">0</b></button>
+    <button class="nav-item" id="ai-nav" hidden><span aria-hidden="true">◈</span> AI 库 <b id="ai-count">0</b></button>
     <button class="nav-item" id="random-note"><span aria-hidden="true">✧</span> 偶遇一条旧念头 <span class="nav-arrow" aria-hidden="true">↗</span></button>
     <div class="side-group"><p class="side-heading">按月份回看</p><div id="month-nav" class="month-nav"></div></div>
     <div class="side-group"><p class="side-heading">念头的去处</p><div id="topic-nav" class="topic-nav"></div></div>
@@ -103,6 +104,7 @@
       <div class="view-switch" id="view-switch" role="tablist" aria-label="切换视图" hidden>
         <button class="view-switch-btn active" id="mobile-view-notes" role="tab" aria-selected="true" type="button">时间轴</button>
         <button class="view-switch-btn" id="mobile-view-lists" role="tab" aria-selected="false" type="button">书影</button>
+        <button class="view-switch-btn" id="mobile-view-ai" role="tab" aria-selected="false" type="button">AI库</button>
       </div>
       <div id="view-notes">
       <section class="hero">
@@ -184,6 +186,28 @@
           <p id="lists-empty-text">对任意 AI 说一句「想读《…》」或「想看《…》」，第一条就会出现在这里。</p>
         </div>
         <div class="timeline-end"><span></span><p>想读的、想看的，都在这里慢慢等。</p></div>
+      </section>
+
+      <!-- AI 库视图（AI 项目 / Skill / 工具 / 知识文章） -->
+      <section id="view-ai" hidden aria-label="AI 库">
+        <div class="lists-toolbar">
+          <div class="timeline-title"><h2>AI 库</h2><span id="ai-count-line"></span></div>
+          <button id="ai-sort" class="sort-button" aria-label="切换 AI 库排序">最近添加 ↓</button>
+        </div>
+        <p class="lists-stats" id="ai-stats"></p>
+        <div class="filter-bar">
+          <div id="ai-type-filter" class="filter-tags"></div>
+          <div id="ai-status-filter" class="filter-tags"></div>
+        </div>
+        <div class="filter-bar">
+          <div id="ai-tag-filter" class="filter-tags"></div>
+        </div>
+        <div id="ai-grid" class="lists-grid"></div>
+        <div id="ai-empty" class="empty-state" hidden>
+          <span aria-hidden="true">⌁</span><h3 id="ai-empty-title">AI 库还空着。</h3>
+          <p id="ai-empty-text">对任意 AI 说一句「记下这个项目/Skill/工具」，第一条就会出现在这里。</p>
+        </div>
+        <div class="timeline-end"><span></span><p>好项目、好工具、好文章，都在这里慢慢攒。</p></div>
       </section>
     </main>
 

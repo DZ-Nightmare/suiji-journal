@@ -13,6 +13,7 @@ function main() {
 
   const notes = lib.scanVault(config);
   const lists = lib.scanLists(config);
+  const ai = lib.scanAI(config);
   const mediaDir = path.join(lib.ROOT, 'media');
   fs.mkdirSync(mediaDir, { recursive: true });
 
@@ -35,12 +36,13 @@ function main() {
   });
   const finalNotes = finalize(notes);
   const finalLists = finalize(lists);
+  const finalAI = finalize(ai);
 
   // 孤儿附件校验：vault/Attachments 里存在但没被任何条目挂载的文件会静默丢失
   //（不进载荷、media bin 被清理）——大声警告，防止“手工拼载荷”的附件被全量重建冲掉
   const attachDir = path.join(lib.ROOT, config.vault || 'vault', 'Attachments');
   if (fs.existsSync(attachDir)) {
-    const referenced = new Set([...finalNotes, ...finalLists].flatMap(n => n.attachments.map(a => a.name)));
+    const referenced = new Set([...finalNotes, ...finalLists, ...finalAI].flatMap(n => n.attachments.map(a => a.name)));
     const orphans = fs.readdirSync(attachDir).filter(f => !f.startsWith('.') && !referenced.has(f));
     for (const f of orphans) {
       console.warn(`  ⚠ 孤儿附件（未被任何条目挂载，本次不会进入加密包）：Attachments/${f}`);
@@ -62,7 +64,7 @@ function main() {
   const tombstones = fs.existsSync(tombFile)
     ? fs.readFileSync(tombFile, 'utf8').split(/\r?\n/).map(s => s.trim()).filter(Boolean)
     : [];
-  const payload = { notes: finalNotes, lists: finalLists, tombstones, built_at: built };
+  const payload = { notes: finalNotes, lists: finalLists, ai: finalAI, tombstones, built_at: built };
   const enc = lib.encryptPayload(payload, password, saltB64);
   fs.writeFileSync(path.join(lib.ROOT, 'journal.enc.json'), JSON.stringify(enc));
 
@@ -80,7 +82,8 @@ function main() {
 
   const days = new Set(finalNotes.map(n => n.date)).size;
   const listStat = finalLists.length ? `、${finalLists.length} 条书影` : '';
-  console.log(`✓ 已加密 ${finalNotes.length} 篇随记${listStat}（${days} 个记录日）→ journal.enc.json`);
+  const aiStat = finalAI.length ? `、${finalAI.length} 条 AI 库` : '';
+  console.log(`✓ 已加密 ${finalNotes.length} 篇随记${listStat}${aiStat}（${days} 个记录日）→ journal.enc.json`);
   console.log(`✓ 已加密 ${keep.size} 个附件 → media/`);
   console.log(`✓ 构建时间 ${payload.built_at}`);
 }

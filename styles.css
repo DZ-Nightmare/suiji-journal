@@ -789,6 +789,13 @@ body.sheet-open { overflow: hidden; }
 .list-want { background: var(--soft); color: var(--accent-dark); }
 .list-doing { background: var(--accent); color: var(--on-accent); }
 .list-done { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+/* AI 库四态徽章 */
+.ai-want { background: var(--soft); color: var(--accent-dark); }
+.ai-trying { background: var(--accent); color: var(--on-accent); }
+.ai-kept { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.ai-dropped { background: #f9e7e4; color: #a3412f; }
+.ai-url { display: block; font-size: 12px; color: var(--accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-url:hover { color: var(--accent-dark); text-decoration: underline; }
 .list-kind { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
 .list-cover { display: block; width: 100%; padding: 0; border: 0; background: none; border-radius: 10px; overflow: hidden; aspect-ratio: 3 / 4; max-height: 220px; cursor: zoom-in; }
 .list-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }

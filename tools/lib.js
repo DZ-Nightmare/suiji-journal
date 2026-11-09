@@ -194,6 +194,7 @@ function scanVault(config) {
       tags: Array.isArray(data.tags) ? data.tags.map(String) : (data.tags ? [String(data.tags)] : []),
       topics: Array.isArray(data.topics) ? data.topics.map(String) : (data.topics ? [String(data.topics)] : []),
       quote, thought, body: body.trim(), raw: text, attachments,
+      links: findWikiLinks(body),
     };
   }).filter(n => n.date);
 
@@ -213,6 +214,7 @@ function scanVault(config) {
     thought: n.thought,
     body: n.body,
     raw: n.raw,
+    links: n.links,
     attachments: n.attachments.map(a => ({
       name: a.name, mime: a.mime, size: a.size,
       file: `media/${a.hash}.bin`,
@@ -317,6 +319,65 @@ function scanLists(config) {
   }));
 }
 
+/* 扫描 04-AI，产出与网页端约定一致的 ai 数组（未加密）
+   type：project | skill | tool | article；status：want | trying | kept | dropped
+   与 scanLists 同构，额外字段 url / creator / why */
+function scanAI(config) {
+  const vaultDir = path.join(ROOT, config.vault || 'vault');
+  const aiDir = path.join(vaultDir, '04-AI');
+  const attachDir = path.join(vaultDir, 'Attachments');
+  if (!fs.existsSync(aiDir)) return [];
+
+  const validType = ['project', 'skill', 'tool', 'article'];
+  const validStatus = ['want', 'trying', 'kept', 'dropped'];
+  const parsed = fs.readdirSync(aiDir).filter(n => n.endsWith('.md')).sort().map(name => {
+    const file = path.join(aiDir, name);
+    const text = fs.readFileSync(file, 'utf8');
+    const { data, body } = parseFrontmatter(text);
+    const rel = path.posix.join('04-AI', name);
+    const attachNames = findAttachments(body, data);
+    const attachments = [];
+    for (const aName of attachNames) {
+      const afile = path.join(attachDir, aName);
+      if (!fs.existsSync(afile)) { console.warn(`  ! 附件缺失：${aName}（${rel}）`); continue; }
+      const content = fs.readFileSync(afile);
+      attachments.push({ name: aName, content, size: content.length, mime: mimeOf(aName), hash: crypto.createHash('sha256').update(content).digest('hex').slice(0, 20) });
+    }
+    return {
+      rel,
+      added: String(data.added || data.date || '').slice(0, 10),
+      type: validType.includes(data.type) ? data.type : 'project',
+      title: shortTitle(data, body),
+      url: data.url ? String(data.url) : '',
+      creator: data.creator ? String(data.creator) : '',
+      status: validStatus.includes(String(data.status)) ? String(data.status) : 'want',
+      why: data.why ? String(data.why) : '',
+      tags: Array.isArray(data.tags) ? data.tags.map(String) : (data.tags ? [String(data.tags)] : []),
+      remarks: extractRemarks(body),
+      links: findWikiLinks(body),
+      body: body.trim(), raw: text, attachments,
+    };
+  }).filter(n => n.added);
+
+  parsed.sort((a, b) => a.added.localeCompare(b.added) || a.rel.localeCompare(b.rel));
+  return parsed.map((n, i) => ({
+    id: `AI-${String(i + 1).padStart(3, '0')}`,
+    anchor: `ai-${String(i + 1).padStart(3, '0')}`,
+    rel: n.rel,
+    type: n.type, title: n.title, url: n.url, creator: n.creator,
+    status: n.status, why: n.why,
+    added: n.added,
+    tags: n.tags, remarks: n.remarks, links: n.links,
+    body: n.body, raw: n.raw,
+    attachments: n.attachments.map(a => ({
+      name: a.name, mime: a.mime, size: a.size,
+      file: `media/${a.hash}.bin`,
+      aad: `attachment:${a.hash}`,
+    })),
+    _content: n.attachments.map(a => ({ hash: a.hash, content: a.content })),
+  }));
+}
+
 function mimeOf(name) {
   const ext = path.extname(name).toLowerCase();
   return ({
@@ -329,4 +390,4 @@ function mimeOf(name) {
   })[ext] || 'application/octet-stream';
 }
 
-module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, decryptPayload, decryptAttachment, parseFrontmatter, scanVault, scanLists, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };
+module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, decryptPayload, decryptAttachment, parseFrontmatter, scanVault, scanLists, scanAI, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };

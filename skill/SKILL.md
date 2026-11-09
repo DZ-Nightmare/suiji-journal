@@ -5,7 +5,8 @@ description: >
   格式的日记随笔，加密后写入随记并自动推送到 GitHub Pages（私密时间轴站点）。
   触发词：记随记、写随记、随笔、写一篇随笔、存进随记、记到随记、把今天记下来、沉淀专题、
   生成日记随笔、推送随记、发布随记、更新随记、随记推送、journal、
-  想读、想看、书单、片单、书影清单、记感想、标记读完、标记看完、看到哪了、读到哪了。
+  想读、想看、书单、片单、书影清单、记感想、标记读完、标记看完、看到哪了、读到哪了、
+  记个工具、收藏项目、存个 Skill、AI 库、记个文章、好用的 AI 工具。
   输入不限：一段话 / 聊天记录 / 图片 / 录音 / 文档 / 网页链接 / 会议内容，都可生成随记。
   NOT for：写代码、写报告长文（非随笔）、公开发布的内容；那些走其他工作流。
 ---
@@ -103,6 +104,43 @@ node tools/list.js rm "银翼杀手2049"
 不留悬空）。互链约定：wiki 链接只写在正文「关联」段（如 `- 相关随记：[[01-Journals/…]]`），
 frontmatter 不放链接；网页端双向可点。
 
+## AI 库（AI 知识 & 工具收藏，04-AI）
+
+收藏 AI 相关的**开源项目 / Skill / 工具 / 知识文章**，四态流转（想试→在试→已用/淘汰），
+感想时间流与随记双向互链。条目同样**不是随记**（标题=名称、正文=感想、tags=纯主题词，
+三条豁免同书影）。命令全集与书影同构：
+
+```bash
+# 入库存（type 四选一；url/creator 先搜索确认，绝不编造）
+node tools/ai.js add project "AutoGen" --url https://github.com/microsoft/autogen --creator Microsoft --why "想试试多智能体"
+node tools/ai.js add skill "会议纪要助手" --why "把会议录音整理成纪要" --tags 会议
+node tools/ai.js add tool "Excalidraw" --url https://excalidraw.com --tags 画图
+node tools/ai.js add article "某论文" --url https://arxiv.org/abs/... --creator 作者
+
+# 状态流转（want 想试 / trying 在试 / kept 已用 / dropped 淘汰，允许回退）
+node tools/ai.js status "AutoGen" trying
+node tools/ai.js status "AutoGen" dropped  # 淘汰：务必用 remark 补一句淘汰原因，避免以后重复踩坑
+
+# 感想 / 关联随记 / 感想升格随记（同书影）
+node tools/ai.js remark "AutoGen" "跑通了示例，配置比想象中简单"
+node tools/ai.js link "AutoGen" "01-Journals/2026/11/2026-11-09"
+node tools/ai.js promote "AutoGen" 11-09 "01-Journals/2026/11/2026-11-09"
+
+# 改名 / 移除（自动登记墓碑，跨设备同步后同步删除——不登记的删除会被对账复活！）
+node tools/ai.js rename "AutoGen" "AutoGen（Microsoft）"
+node tools/ai.js rm "Excalidraw"
+
+# 查看 / 列出：node tools/ai.js show "AutoGen" ｜ node tools/ai.js list [--type project|skill|tool|article] [--status want|trying|kept|dropped]
+# 通用参数 --push：构建后直接推送
+```
+
+**入库存规范**：
+1. **先搜索确认**名称、作者/组织、链接，同名项目多，不确定就问用户，**绝不编造**。
+2. `--url` 只收 http(s) 链接（项目主页/仓库/文章地址）；截图/PDF 等素材走附件挂载
+   （frontmatter `attachments:`，规则与随记/书影完全一致——正文不写引用、不出现文件名）。
+3. 四类：`project`（开源项目/框架）、`skill`（AI 技能包）、`tool`（网站/App/CLI）、
+   `article`（教程/论文/博客/文档）。
+
 ## 多设备同步（多台设备记录必读）
 
 记录后一律走 `--push`（import/list 的 `--push`，或 `node tools/publish.js`）。发布闭环
@@ -112,12 +150,12 @@ frontmatter 不放链接；网页端双向可点。
 
 - **新设备接入（三步）**：`git clone <仓库>` → 复制 `journal.config.example.json`
   为 `journal.config.json` 填同一个查看密码 → `node tools/sync.js`（vault 从零长出
-  全部历史随记/书影/附件）。vault 丢失恢复同招——密文载荷即明文备份。
+  全部历史随记/书影/AI 库/附件）。vault 丢失恢复同招——密文载荷即明文备份。
 - 推送被拒（fetch first）**禁止盲推或直接覆盖**，`publish.js` 会自动合并重试。
 - 同一条目被两台设备同时修改：本地版本为准，远端版本存入 `vault/_sync-conflicts/`
   留痕待人工合并（该目录不参与构建）。
-- 删除/改名条目**必须走 `list.js rm` / `list.js rename`**（自动登记墓碑，跨设备收敛）；
-  直接删文件的删除会被对账复活。
+- 删除/改名条目**必须走 `list.js rm` / `list.js rename`（AI 库为 `ai.js rm` / `ai.js rename`）**
+  （自动登记墓碑，跨设备收敛）；直接删文件的删除会被对账复活。
 
 ## 附件挂载规范（⚠️ 附件必须显式挂载，否则不会进加密包）
 
@@ -230,7 +268,7 @@ tags:
 
 ## 验收
 
-- `node tools/build.js` 输出「✓ 已加密 N 篇随记（、M 条书影）」即成功。
+- `node tools/build.js` 输出「✓ 已加密 N 篇随记（、M 条书影、K 条 AI 库）」即成功。
 - `git -C 项目目录 log --oneline -1` 有新提交、`git status` 干净（除 vault）。
 - 线上 `https://<用户名>.github.io/<仓库名>/` 用密码可解锁、新随记出现在时间轴、
-  新条目出现在「书影」页（清单操作时）。
+  新条目出现在「书影」页（清单操作时）或「AI 库」页（AI 库操作时）。

@@ -2,16 +2,17 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1793991030436';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1794213634702';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
-  key: null, notes: [], lists: [], hasLists: false, media: new Map(), urls: new Set(),
+  key: null, notes: [], lists: [], hasLists: false, ai: [], hasAI: false, media: new Map(), urls: new Set(),
   session: 0, currentAnchor: null, currentDetail: null, detailDepth: 0, view: 'notes',
-  ascending: false, calendar: '', listSort: 'added',
+  ascending: false, calendar: '', listSort: 'added', aiSort: 'added',
   lastActive: Date.now(),
   filter: { q: '', tag: '', topic: '', month: '', day: '', images: false },
   listFilter: { type: '', status: '', tag: '' },
+  aiFilter: { type: '', status: '', tag: '' },
 };
 
 function node(tag, text, cls) {
@@ -78,6 +79,9 @@ async function unlock(event) {
     // 书影清单：payload.lists 不存在（旧构建数据）时隐藏入口；空数组照常展示
     state.hasLists = Array.isArray(payload.lists);
     state.lists = state.hasLists ? payload.lists : [];
+    // AI 库：payload.ai 不存在（旧构建数据）时隐藏入口；空数组照常展示
+    state.hasAI = Array.isArray(payload.ai);
+    state.ai = state.hasAI ? payload.ai : [];
     state.session++;
     state.lastActive = Date.now();
     state.calendar = state.notes.length
@@ -137,6 +141,7 @@ function revealJournal() {
     const hash = location.hash.slice(1);
     if (hash.startsWith('card-')) openNote(hash, true);
     else if (hash.startsWith('list-') && state.hasLists) openList(hash, true);
+    else if (hash.startsWith('ai-') && state.hasAI) openAI(hash, true);
     window.scrollTo(0, 0);
   };
   // 书本插画在手机端隐藏：不可见时跳过翻书，直接登场（避免白等）
@@ -156,6 +161,7 @@ function lockJournal() {
   state.key = null;
   state.notes = [];
   state.lists = [];
+  state.ai = [];
   state.currentAnchor = null;
   state.currentDetail = null;
   state.detailDepth = 0;
@@ -163,9 +169,9 @@ function lockJournal() {
   state.urls.forEach(url => URL.revokeObjectURL(url));
   state.urls.clear();
   ['reader', 'lightbox'].forEach(id => $(id).close());
-  ['timeline', 'month-nav', 'topic-nav', 'filter-tags', 'calendar-grid', 'reader-body', 'reader-attachments', 'reader-tags', 'reader-links', 'lists-grid', 'lists-type-filter', 'lists-status-filter', 'lists-tag-filter'].forEach(id => $(id).replaceChildren());
-  ['reader-title', 'reader-id', 'reader-date', 'reader-meta', 'updated-at', 'start-date', 'calendar-title', 'visible-count', 'footer-count', 'lists-count-line', 'lists-stats'].forEach(id => { $(id).textContent = ''; });
-  ['total-count', 'day-count', 'nav-count', 'list-count'].forEach(id => { $(id).textContent = '0'; });
+  ['timeline', 'month-nav', 'topic-nav', 'filter-tags', 'calendar-grid', 'reader-body', 'reader-attachments', 'reader-tags', 'reader-links', 'lists-grid', 'lists-type-filter', 'lists-status-filter', 'lists-tag-filter', 'ai-grid', 'ai-type-filter', 'ai-status-filter', 'ai-tag-filter'].forEach(id => $(id).replaceChildren());
+  ['reader-title', 'reader-id', 'reader-date', 'reader-meta', 'updated-at', 'start-date', 'calendar-title', 'visible-count', 'footer-count', 'lists-count-line', 'lists-stats', 'ai-count-line', 'ai-stats'].forEach(id => { $(id).textContent = ''; });
+  ['total-count', 'day-count', 'nav-count', 'list-count', 'ai-count'].forEach(id => { $(id).textContent = '0'; });
   $('reader-meta').hidden = true;
   $('reader-links').hidden = true;
   setView('notes', true);
@@ -276,27 +282,34 @@ function populate() {
 
   $('list-nav').hidden = !state.hasLists;
   $('list-count').textContent = state.lists.length;
-  $('view-switch').hidden = !state.hasLists;
+  $('ai-nav').hidden = !state.hasAI;
+  $('ai-count').textContent = state.ai.length;
+  $('view-switch').hidden = !state.hasLists && !state.hasAI;
   setupListFilters();
+  setupAIFilters();
 }
 
-/* ---------- 视图切换（时间轴 / 书影） ---------- */
+/* ---------- 视图切换（时间轴 / 书影 / AI 库） ---------- */
 function setView(view, silent) {
   state.view = view;
   $('view-notes').hidden = view !== 'notes';
   $('view-lists').hidden = view !== 'lists';
-  $('breadcrumb-page').textContent = view === 'lists' ? '书影' : '时间轴';
+  $('view-ai').hidden = view !== 'ai';
+  $('breadcrumb-page').textContent = view === 'lists' ? '书影' : view === 'ai' ? 'AI 库' : '时间轴';
   $('all-notes').classList.toggle('active', view === 'notes');
   $('list-nav').classList.toggle('active', view === 'lists');
+  $('ai-nav').classList.toggle('active', view === 'ai');
   // 移动端视图切换控件同步
-  [['mobile-view-notes', 'notes'], ['mobile-view-lists', 'lists']].forEach(([id, v]) => {
+  [['mobile-view-notes', 'notes'], ['mobile-view-lists', 'lists'], ['mobile-view-ai', 'ai']].forEach(([id, v]) => {
     const btn = $(id);
     btn.classList.toggle('active', view === v);
     btn.setAttribute('aria-selected', String(view === v));
   });
-  $('search').placeholder = view === 'lists' ? '找一本书，一部电影…' : '找一段话，或一个念头…';
+  $('search').placeholder = view === 'lists' ? '找一本书，一部电影…' : view === 'ai' ? '找一个项目、工具、文章…' : '找一段话，或一个念头…';
   if (silent) return;
-  if (view === 'lists') renderLists(); else render();
+  if (view === 'lists') renderLists();
+  else if (view === 'ai') renderAI();
+  else render();
 }
 
 /* ---------- 书影清单渲染 ---------- */
@@ -597,6 +610,189 @@ function moveCalendar(delta) {
   renderCalendar();
 }
 
+/* ---------- AI 库渲染 ---------- */
+const AI_TYPE_LABEL = { project: '项目', skill: '技能', tool: '工具', article: '文章' };
+const AI_TYPE_CHAR = { project: '项', skill: '技', tool: '具', article: '文' };
+const AI_STATUS_LABEL = { want: '想试', trying: '在试', kept: '已用', dropped: '淘汰' };
+
+function aiStatusText(entry) {
+  return AI_STATUS_LABEL[entry.status] || AI_STATUS_LABEL.want;
+}
+
+function aiMetaText(entry) {
+  const bits = [];
+  if (entry.creator) bits.push(entry.creator);
+  bits.push(`入库存于 ${entry.added.slice(5, 7)}.${entry.added.slice(8, 10)}`);
+  return bits.join(' · ');
+}
+
+function aiExcerpt(entry) {
+  const clean = s => s
+    .replace(/→ 已成随记.*/g, '')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(/^>\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_, p, l) => (l ? l.slice(1) : p.split('/').at(-1).replace(/\.[^.]+$/, '')))
+    .trim().slice(0, 80);
+  const last = entry.remarks.length ? entry.remarks[entry.remarks.length - 1].text : '';
+  if (last.trim()) return clean(last);
+  if (entry.why) return clean(entry.why);
+  const line = entry.body.split(/\r?\n/).find(l => l.trim() && !/^#{1,3}\s/.test(l.trim()));
+  return clean(line || '');
+}
+
+function setupAIFilters() {
+  const chips = (container, options, key) => {
+    $(container).replaceChildren(...options.map(([value, label]) => {
+      const el = button(label, 'filter-chip', () => {
+        state.aiFilter[key] = state.aiFilter[key] === value ? '' : value;
+        renderAI();
+      });
+      el.dataset.value = value;
+      return el;
+    }));
+  };
+  chips('ai-type-filter', [['', '全部'], ['project', '项目'], ['skill', '技能'], ['tool', '工具'], ['article', '文章']], 'type');
+  chips('ai-status-filter', [['', '全部'], ['want', '想试'], ['trying', '在试'], ['kept', '已用'], ['dropped', '淘汰']], 'status');
+  const tags = [...new Set(state.ai.flatMap(n => n.tags))];
+  $('ai-tag-filter').replaceChildren(...tags.map(tag => {
+    const el = button('# ' + tag, 'filter-chip', () => {
+      state.aiFilter.tag = state.aiFilter.tag === tag ? '' : tag;
+      renderAI();
+    });
+    el.dataset.value = tag;
+    return el;
+  }));
+}
+
+function filteredAI() {
+  const f = state.aiFilter;
+  const q = state.filter.q.trim().toLocaleLowerCase();
+  const out = state.ai.filter(n =>
+    (!q || [n.title, n.creator, n.url, n.why, n.body, ...n.tags].join('\n').toLocaleLowerCase().includes(q)) &&
+    (!f.type || n.type === f.type) &&
+    (!f.status || n.status === f.status) &&
+    (!f.tag || n.tags.includes(f.tag)));
+  const sorters = {
+    added: (a, b) => b.added.localeCompare(a.added) || b.id.localeCompare(a.id),
+    type: (a, b) => a.type.localeCompare(b.type) || b.added.localeCompare(a.added),
+  };
+  return out.sort(sorters[state.aiSort] || sorters.added);
+}
+
+function renderAI() {
+  const items = filteredAI();
+  $('ai-grid').replaceChildren(...items.map(renderAICard));
+  $('ai-count-line').textContent = `${items.length} 条`;
+  const count = s => state.ai.filter(n => n.status === s).length;
+  $('ai-stats').textContent = `想试 ${count('want')} · 在试 ${count('trying')} · 已用 ${count('kept')} · 淘汰 ${count('dropped')}`;
+  const empty = $('ai-empty');
+  empty.hidden = items.length > 0;
+  if (!state.ai.length) {
+    $('ai-empty-title').textContent = 'AI 库还空着。';
+    $('ai-empty-text').textContent = '对任意 AI 说一句「记下这个项目/Skill/工具」，第一条就会出现在这里。';
+  } else {
+    $('ai-empty-title').textContent = '这里没有这个条目。';
+    $('ai-empty-text').textContent = '换个筛选或关键词，回到全部看看。';
+  }
+  document.querySelectorAll('#ai-type-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === state.aiFilter.type));
+  document.querySelectorAll('#ai-status-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === state.aiFilter.status));
+  document.querySelectorAll('#ai-tag-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === state.aiFilter.tag));
+  const sortLabels = { added: '最近添加 ↓', type: '按类型 ↓' };
+  $('ai-sort').textContent = sortLabels[state.aiSort] || sortLabels.added;
+}
+
+function renderAICard(entry) {
+  const card = node('article', undefined, 'list-card');
+  card.id = entry.anchor;
+
+  const head = node('div', undefined, 'list-card-head');
+  head.append(node('span', aiStatusText(entry), `list-badge ai-${entry.status}`),
+    node('span', `${AI_TYPE_CHAR[entry.type] || '项'} · ${AI_TYPE_LABEL[entry.type] || '项目'}`, 'list-kind'));
+  card.append(head);
+
+  const cover = entry.attachments.find(a => a.mime.startsWith('image/'));
+  if (cover) {
+    const imageButton = button('', 'list-cover', () => showImage(cover));
+    imageButton.setAttribute('aria-label', `查看「${entry.title}」的配图`);
+    const img = node('img');
+    img.alt = `${entry.title}的配图`;
+    img.loading = 'lazy';
+    imageButton.append(img);
+    card.append(imageButton);
+    loadMedia(cover)
+      .then(url => { if (img.isConnected && state.key) img.src = url; })
+      .catch(() => {
+        if (state.key) imageButton.replaceChildren(node('div', '配图暂时未能加载。', 'image-loading'));
+      });
+  }
+
+  const title = node('h3', undefined, 'list-card-title');
+  title.append(button(entry.title, 'card-title', () => openAI(entry.anchor)));
+  card.append(title);
+
+  if (entry.url && /^https?:\/\//i.test(entry.url)) {
+    const a = node('a', entry.url.replace(/^https?:\/\//, '').replace(/\/$/, ''), 'ai-url');
+    a.href = entry.url;
+    a.target = '_blank';
+    a.rel = 'noreferrer noopener';
+    card.append(a);
+  }
+
+  const meta = aiMetaText(entry);
+  if (meta) card.append(node('p', meta, 'list-card-meta'));
+  const excerpt = aiExcerpt(entry);
+  if (excerpt) card.append(node('p', excerpt, 'card-excerpt'));
+
+  const tags = node('div', undefined, 'card-tags');
+  entry.tags.slice(0, 3).forEach(tag => tags.append(button('# ' + tag, 'card-tag', () => {
+    state.aiFilter.tag = state.aiFilter.tag === tag ? '' : tag;
+    renderAI();
+  })));
+  card.append(tags);
+  card.append(button('打开条目 ↗', 'read-more', () => openAI(entry.anchor)));
+  return card;
+}
+
+function openAI(anchor, fromHash) {
+  const entry = state.ai.find(n => n.anchor === anchor);
+  if (!entry) return;
+  state.currentAnchor = anchor;
+  state.currentDetail = { kind: 'ai', anchor };
+  $('reader-date').textContent = `入库存于 ${entry.added}`;
+  $('reader-id').textContent = entry.id;
+  $('reader-title').textContent = entry.title;
+  $('reader-tags').replaceChildren(...entry.tags.map(t => node('span', t)));
+  $('reader-meta').textContent = [
+    AI_TYPE_LABEL[entry.type] || '项目',
+    aiStatusText(entry),
+    entry.creator || '',
+    entry.url ? `链接 ↗` : '',
+  ].filter(Boolean).join(' · ');
+  $('reader-meta').hidden = false;
+  if (entry.url && /^https?:\/\//i.test(entry.url)) {
+    $('reader-meta').append(' — ', (() => {
+      const a = node('a', entry.url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+      a.href = entry.url;
+      a.target = '_blank';
+      a.rel = 'noreferrer noopener';
+      return a;
+    })());
+  }
+  $('reader-body').replaceChildren(markdown(entry.body, entry.attachments));
+  $('download-note').textContent = '下载这条记录 ↓';
+  renderAttachments($('reader-attachments'), entry.attachments, anchor, () => openAI(anchor, true));
+  // 正文「关联」里的 wiki 链接已渲染为可点按钮；这里补其它 AI 条目指向本条的回链
+  const rel = (entry.rel || '').replace(/\.md$/, '');
+  renderReaderLinks(rel
+    ? state.ai.filter(l => l.anchor !== entry.anchor && l.links.some(t => t.replace(/\.md$/, '') === rel))
+    : [], 'AI 库');
+
+  if (!$('reader').open) $('reader').showModal();
+  $('reader').scrollTop = 0;
+  pushDetail(anchor, fromHash);
+}
+
 /* ---------- 附件 ---------- */
 async function loadMedia(attachment) {
   if (state.media.has(attachment.file)) return state.media.get(attachment.file);
@@ -670,9 +866,10 @@ function resolveWiki(target, attachments) {
     return att.mime.startsWith('image/') ? { kind: 'att-image', att } : { kind: 'att-file', att };
   }
   const hit = state.notes.find(n => (n.rel || '').replace(/\.md$/, '') === t)
-    || state.lists.find(n => (n.rel || '').replace(/\.md$/, '') === t);
+    || state.lists.find(n => (n.rel || '').replace(/\.md$/, '') === t)
+    || state.ai.find(n => (n.rel || '').replace(/\.md$/, '') === t);
   if (!hit) return null;
-  return { kind: hit.anchor.startsWith('list-') ? 'list' : 'note', anchor: hit.anchor };
+  return { kind: hit.anchor.startsWith('list-') ? 'list' : hit.anchor.startsWith('ai-') ? 'ai' : 'note', anchor: hit.anchor };
 }
 function inline(text, target, attachments) {
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|!\[[^\]]*\]\([^\s)]+\)|!?\[\[[^\]]+\]\]|\[[^\]]+\]\([^\s)]+\))/g;
@@ -719,7 +916,7 @@ function inline(text, target, attachments) {
         });
         target.append(b);
       } else if (dest) {
-        const open = () => (dest.kind === 'list' ? openList : openNote)(dest.anchor);
+        const open = () => (dest.kind === 'list' ? openList : dest.kind === 'ai' ? openAI : openNote)(dest.anchor);
         target.append(button(text, 'wiki-link', open));
       } else {
         target.append(document.createTextNode(text));
@@ -811,9 +1008,13 @@ function openNote(anchor, fromHash) {
   $('download-note').textContent = '下载这条随记 ↓';
   renderAttachments($('reader-attachments'), note.attachments, anchor, () => openNote(anchor, true));
 
-  // 回链：扫清单正文的 wiki 链接，找出指向这篇随记的书影
+  // 回链：扫清单/AI 库正文的 wiki 链接，找出指向这篇随记的条目
   const rel = (note.rel || '').replace(/\.md$/, '');
-  renderReaderLinks(rel ? state.lists.filter(l => l.links.some(t => t.replace(/\.md$/, '') === rel)) : []);
+  const backlinks = rel
+    ? [...state.lists.filter(l => l.links.some(t => t.replace(/\.md$/, '') === rel)),
+       ...state.ai.filter(l => l.links.some(t => t.replace(/\.md$/, '') === rel))]
+    : [];
+  renderReaderLinks(backlinks, '相关条目');
 
   if (!$('reader').open) $('reader').showModal();
   $('reader').scrollTop = 0;
@@ -851,12 +1052,15 @@ function openList(anchor, fromHash) {
   pushDetail(anchor, fromHash);
 }
 
-function renderReaderLinks(entries) {
+function renderReaderLinks(entries, label) {
   const box = $('reader-links');
   box.replaceChildren();
   if (!entries.length) { box.hidden = true; return; }
-  box.append(node('p', '相关书影', 'reader-links-title'));
-  entries.forEach(l => box.append(button(`《${l.title}》`, 'reader-link-chip', () => openList(l.anchor))));
+  box.append(node('p', label || '相关书影', 'reader-links-title'));
+  entries.forEach(l => box.append(button(`《${l.title}》`, 'reader-link-chip', () => {
+    if (l.anchor.startsWith('ai-')) openAI(l.anchor);
+    else openList(l.anchor);
+  })));
   box.hidden = false;
 }
 
@@ -882,6 +1086,7 @@ window.addEventListener('popstate', () => {
   const h = location.hash.slice(1);
   if (h.startsWith('card-') && state.notes.some(n => n.anchor === h)) { openNote(h, true); return; }
   if (h.startsWith('list-') && state.lists.some(n => n.anchor === h)) { openList(h, true); return; }
+  if (h.startsWith('ai-') && state.ai.some(n => n.anchor === h)) { openAI(h, true); return; }
   ['reader', 'lightbox'].forEach(id => { if ($(id).open) $(id).close(); });
 });
 
@@ -977,7 +1182,9 @@ function downloadNote() {
   const d = state.currentDetail;
   const note = d && d.kind === 'list'
     ? state.lists.find(n => n.anchor === d.anchor)
-    : state.notes.find(n => n.anchor === state.currentAnchor);
+    : d && d.kind === 'ai'
+      ? state.ai.find(n => n.anchor === d.anchor)
+      : state.notes.find(n => n.anchor === state.currentAnchor);
   if (!note) return;
   const url = URL.createObjectURL(new Blob([note.raw], { type: 'text/markdown;charset=utf-8' }));
   const a = node('a');
@@ -1006,19 +1213,28 @@ $('show-password').addEventListener('click', () => {
 $('all-notes').addEventListener('click', () => { setView('notes'); resetFilters(); });
 ['clear-filter', 'empty-reset'].forEach(id => $(id).addEventListener('click', resetFilters));
 $('list-nav').addEventListener('click', () => setView('lists'));
+$('ai-nav').addEventListener('click', () => setView('ai'));
 $('mobile-view-notes').addEventListener('click', () => setView('notes'));
 $('mobile-view-lists').addEventListener('click', () => setView('lists'));
+$('mobile-view-ai').addEventListener('click', () => setView('ai'));
 $('lists-sort').addEventListener('click', () => {
   const order = ['added', 'priority', 'rating'];
   state.listSort = order[(order.indexOf(state.listSort) + 1) % order.length];
   renderLists();
+});
+$('ai-sort').addEventListener('click', () => {
+  const order = ['added', 'type'];
+  state.aiSort = order[(order.indexOf(state.aiSort) + 1) % order.length];
+  renderAI();
 });
 ['random-note', 'revisit-button'].forEach(id => $(id).addEventListener('click', randomNote));
 $('sort-button').addEventListener('click', () => { state.ascending = !state.ascending; render(); });
 $('image-filter').addEventListener('click', () => { state.filter.images = !state.filter.images; render(); });
 $('search').addEventListener('input', () => {
   state.filter.q = $('search').value;
-  if (state.view === 'lists') renderLists(); else render();
+  if (state.view === 'lists') renderLists();
+  else if (state.view === 'ai') renderAI();
+  else render();
 });
 $('calendar-prev').addEventListener('click', () => moveCalendar(-1));
 $('calendar-next').addEventListener('click', () => moveCalendar(1));
