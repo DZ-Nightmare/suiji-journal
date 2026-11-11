@@ -721,7 +721,7 @@ function renderAI() {
 }
 
 function renderAICard(entry) {
-  const card = node('article', undefined, 'list-card');
+  const card = node('article', undefined, 'list-card ai-card');
   card.id = entry.anchor;
 
   // 1) 标题在最上：身份锚点，第一眼读到「这是什么」
