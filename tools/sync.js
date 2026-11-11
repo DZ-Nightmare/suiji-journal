@@ -56,6 +56,7 @@ function reconcile() {
   if (!password) throw new Error('未配置查看密码（journal.config.json 或环境变量 JOURNAL_PASSWORD）');
   const vaultDir = path.join(lib.ROOT, config.vault || 'vault');
   const conflictDir = path.join(vaultDir, '_sync-conflicts');
+  fs.mkdirSync(vaultDir, { recursive: true });  // 全新机器首次对账：先建 vault/，否则 .tombstones / .sync-state.json 写入报 ENOENT
 
   gitFetch();  // 先刷新 remote-tracking 引用（独立使用时 origin/main 可能是旧的）
 
