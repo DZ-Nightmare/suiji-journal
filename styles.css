@@ -433,7 +433,7 @@ body.book-opening .book-page i { animation: page-glow 1s ease both; }
 .card-tags { display: flex; gap: 9px; flex-wrap: wrap; }
 .card-tag { font-size: 9px; color: var(--accent); padding: 0; }
 .card-tag:hover { color: var(--accent-dark); text-decoration: underline; }
-.read-more { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.read-more { font-size: 12px; color: var(--muted); white-space: nowrap; align-self: flex-start; text-align: left; }
 .read-more:hover { color: var(--accent); }
 .empty-state { text-align: center; padding: 55px 10px 70px; color: var(--muted); }
 .empty-state span { font-size: 28px; color: var(--accent); }
