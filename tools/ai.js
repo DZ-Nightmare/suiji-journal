@@ -20,7 +20,7 @@ const path = require('path');
 const lib = require('./lib');
 
 const LIST_DIR = '04-AI';
-const FM_ORDER = ['added', 'type', 'title', 'url', 'creator', 'status', 'why', 'tags'];
+const FM_ORDER = ['added', 'type', 'title', 'url', 'creator', 'status', 'brief', 'why', 'tags'];
 const TYPE_WORDS = {
   project: ['project', '项目'],
   skill: ['skill', '技能'],
@@ -233,6 +233,7 @@ function main() {
     if (args.creator) data.creator = args.creator;
     if (args.tags) data.tags = args.tags.split(',').map(s => s.trim()).filter(Boolean);
     if (args.why) data.why = args.why;
+    if (args.brief) data.brief = args.brief;
     const why = args.why ? `> ${args.why}\n\n` : '';
     const body = `${why}## 感想\n\n## 关联\n`;
     const file = path.join(dir, name);

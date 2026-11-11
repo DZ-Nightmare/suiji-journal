@@ -111,8 +111,8 @@ frontmatter 不放链接；网页端双向可点。
 三条豁免同书影）。命令全集与书影同构：
 
 ```bash
-# 入库存（type 四选一；url/creator 先搜索确认，绝不编造）
-node tools/ai.js add project "AutoGen" --url https://github.com/microsoft/autogen --creator Microsoft --why "想试试多智能体"
+# 入库存（type 四选一；url/creator 先搜索确认，绝不编造；--brief 是卡片关键词，--why 是详情页描述）
+node tools/ai.js add project "AutoGen" --url https://github.com/microsoft/autogen --creator Microsoft --brief "多智能体、自动化" --why "想试试多智能体"
 node tools/ai.js add skill "会议纪要助手" --why "把会议录音整理成纪要" --tags 会议
 node tools/ai.js add tool "Excalidraw" --url https://excalidraw.com --tags 画图
 node tools/ai.js add article "某论文" --url https://arxiv.org/abs/... --creator 作者
@@ -140,8 +140,9 @@ node tools/ai.js rm "Excalidraw"
    （frontmatter `attachments:`，规则与随记/书影完全一致——正文不写引用、不出现文件名）。
 3. 四类：`project`（开源项目/框架）、`skill`（AI 技能包）、`tool`（网站/App/CLI）、
    `article`（教程/论文/博客/文档）。
-4. `--why` 是卡片首页的**简洁描述**：一句话点明主题（如「网页交互音效库，14 种实时合成的提示音」），
-   **不要写长段说明**（详细说明写进详情页的感想/正文，2026-11-11 用户要求精简过）。
+4. `--why` 是详情页的**完整描述**（一句话缘由，可稍长）；`--brief` 是卡片封面的**关键词**
+   （2-4 个词，逗号分隔，如「微交互、磁吸选择」）——卡片只显示关键词，不显示长句
+   （2026-11-11 用户要求精简过两次：先精简成一句，再精简成几个词）。
 
 ## 多设备同步（多台设备记录必读）
 

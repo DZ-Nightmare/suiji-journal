@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1794378755394';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1794380174127';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -643,20 +643,15 @@ function aiExcerpt(entry) {
   return clean(line || '');
 }
 
-/* 卡片封面位置的「简洁描述」：why 一句话缘由（无 why 时用最新感想兜底）。
-   详细描述（感想时间流）只在点开条目后的详情里。 */
-function aiBrief(entry) {
-  const clean = s => s
-    .replace(/→ 已成随记.*/g, '')
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
-    .replace(/\*\*/g, '')
-    .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_, p, l) => (l ? l.slice(1) : p.split('/').at(-1).replace(/\.[^.]+$/, '')))
-    .trim().slice(0, 72);
-  if (entry.why) return clean(entry.why);
-  const last = entry.remarks.length ? entry.remarks[entry.remarks.length - 1].text : '';
-  if (last.trim()) return clean(last);
-  const line = entry.body.split(/\r?\n/).find(l => l.trim() && !/^#{1,3}\s/.test(l.trim()));
-  return clean(line || '');
+/* 卡片封面位置的「简洁描述」：brief（2-4 个关键词，逗号/空格分隔）。
+   没有 brief 时兜底取 why 的前几个词；完整描述只在详情页。 */
+function aiBriefWords(entry) {
+  const words = (entry.brief || entry.why || '')
+    .split(/[,，、;；\s]+/)
+    .map(s => s.trim())
+    .filter(s => s && !/^[\d.]+$/.test(s))
+    .slice(0, 4);
+  return words;
 }
 
 function setupAIFilters() {
@@ -738,11 +733,12 @@ function renderAICard(entry) {
   head.append(badge, node('span', AI_TYPE_LABEL[entry.type] || '项目', 'list-kind'));
   card.append(head);
 
-  // 3) 简洁描述块：摘要在标题之下（标准内容卡片层级；详细描述只在详情页）
-  const brief = aiBrief(entry);
-  if (brief) {
-    const briefBox = node('div', brief, 'ai-brief');
-    briefBox.setAttribute('aria-label', '简洁描述');
+  // 3) 封面位关键词胶囊：几个词点明主题（详细描述只在详情页）
+  const briefWords = aiBriefWords(entry);
+  if (briefWords.length) {
+    const briefBox = node('div', undefined, 'ai-brief');
+    briefBox.setAttribute('aria-label', '关键词');
+    briefWords.forEach(w => briefBox.append(node('span', w, 'ai-brief-chip')));
     card.append(briefBox);
   }
 
