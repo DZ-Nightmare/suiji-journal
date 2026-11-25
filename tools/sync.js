@@ -93,6 +93,7 @@ function reconcile() {
     ...(Array.isArray(payload.notes) ? payload.notes : []).map(n => ({ ...n, kind: '随记' })),
     ...(Array.isArray(payload.lists) ? payload.lists : []).map(n => ({ ...n, kind: '书影' })),
     ...(Array.isArray(payload.ai) ? payload.ai : []).map(n => ({ ...n, kind: 'AI库' })),
+    ...(Array.isArray(payload.radar) ? payload.radar : []).map(n => ({ ...n, kind: '雷达' })),
   ];
   let restored = 0, skipped = 0, conflicted = 0;
 
@@ -181,7 +182,7 @@ function reconcile() {
   }
 
   fs.writeFileSync(stateFile, JSON.stringify(syncState, null, 1));
-  console.log(`✓ 对账完成：恢复 ${restored} 篇随记/书影/AI库、${restoredAtt} 个附件；跳过 ${skipped} 项；冲突留痕 ${conflicted} 项；墓碑生效 ${tombApplied} 项`);
+  console.log(`✓ 对账完成：恢复 ${restored} 篇随记/书影/AI库/雷达、${restoredAtt} 个附件；跳过 ${skipped} 项；冲突留痕 ${conflicted} 项；墓碑生效 ${tombApplied} 项`);
   if (conflicted) console.log('⚠ 有冲突副本待人工合并（vault/_sync-conflicts/，不参与构建）');
 }
 

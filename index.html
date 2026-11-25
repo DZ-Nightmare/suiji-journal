@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#f7f8f2">
   <meta name="description" content="随记，一本只属于自己的随想日记。">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self' https://api.github.com https://hn.algolia.com https://hf-mirror.com; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1794542528999" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1794542528999">
-  <link rel="stylesheet" href="styles.css?v=1794542528999">
-  <script src="app.js?v=1794542528999" defer></script>
+  <link rel="icon" href="icon.svg?v=1795601435490" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1795601435490">
+  <link rel="stylesheet" href="styles.css?v=1795601435490">
+  <script src="app.js?v=1795601435490" defer></script>
+  <script src="radar.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#timeline">跳到时间轴</a>
@@ -79,6 +80,7 @@
     <button class="nav-item active" id="all-notes"><span aria-hidden="true">◷</span> 全部随记 <b id="nav-count">0</b></button>
     <button class="nav-item" id="list-nav" hidden><span aria-hidden="true">▤</span> 书影清单 <b id="list-count">0</b></button>
     <button class="nav-item" id="ai-nav" hidden><span aria-hidden="true">◈</span> AI 库 <b id="ai-count">0</b></button>
+    <button class="nav-item" id="radar-nav" hidden><span aria-hidden="true">◉</span> AI 雷达 <b id="radar-count">0</b></button>
     <button class="nav-item" id="random-note"><span aria-hidden="true">✧</span> 偶遇一条旧念头 <span class="nav-arrow" aria-hidden="true">↗</span></button>
     <div class="side-group"><p class="side-heading">按月份回看</p><div id="month-nav" class="month-nav"></div></div>
     <div class="side-group"><p class="side-heading">念头的去处</p><div id="topic-nav" class="topic-nav"></div></div>
@@ -105,6 +107,7 @@
         <button class="view-switch-btn active" id="mobile-view-notes" role="tab" aria-selected="true" type="button">时间轴</button>
         <button class="view-switch-btn" id="mobile-view-lists" role="tab" aria-selected="false" type="button">书影</button>
         <button class="view-switch-btn" id="mobile-view-ai" role="tab" aria-selected="false" type="button">AI库</button>
+        <button class="view-switch-btn" id="mobile-view-radar" role="tab" aria-selected="false" type="button">雷达</button>
       </div>
       <div id="view-notes">
       <section class="hero">
@@ -208,6 +211,36 @@
           <p id="ai-empty-text">对任意 AI 说一句「记下这个项目/Skill/工具」，第一条就会出现在这里。</p>
         </div>
         <div class="timeline-end"><span></span><p>好项目、好工具、好文章，都在这里慢慢攒。</p></div>
+      </section>
+
+      <!-- AI 雷达视图（实时信号流 + 收进雷达的精选） -->
+      <section id="view-radar" hidden aria-label="AI 雷达">
+        <div class="lists-toolbar">
+          <div class="timeline-title"><h2>AI 雷达</h2><span id="radar-count-line"></span></div>
+          <button id="radar-refresh" class="sort-button" aria-label="重新拉取信号">刷新 ↻</button>
+        </div>
+        <p class="lists-stats" id="radar-stats"></p>
+        <div id="radar-hero">
+          <div id="radar-sweep-box"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-sweep"></div><span class="radar-blip rb1"></span><span class="radar-blip rb2"></span><span class="radar-blip rb3"></span></div>
+          <div>
+            <p class="eyebrow">PUBLIC SIGNALS, PRIVATELY KEPT</p>
+            <h1>看 AI 圈在发生什么。</h1>
+            <p class="hero-description">从 GitHub 新项目、Hacker News 热帖、HuggingFace 每日论文里<br>现拉信号，按「对我们有没有用、来源可信吗、能自己试吗」筛过。<br>点「收进雷达」，选中的信号就加密存进你自己的随记。</p>
+            <div class="hero-meta"><span id="radar-fetched"></span><span id="radar-source-line"></span></div>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div id="radar-cat-filter" class="filter-tags"></div>
+          <div id="radar-window-filter" class="filter-tags"></div>
+        </div>
+        <div id="radar-saved-bar" class="filter-bar" hidden><div id="radar-saved-filter" class="filter-tags"></div></div>
+        <div id="radar-feed" class="lists-grid"></div>
+        <div id="radar-empty" class="empty-state" hidden>
+          <span aria-hidden="true">◉</span><h3 id="radar-empty-title">还没拉到信号。</h3>
+          <p id="radar-empty-text">点上面的「刷新 ↻」试试；网络不通时，渠道目录也能帮你找到入口。</p>
+        </div>
+        <div id="radar-channels" class="radar-channels" hidden></div>
+        <div class="timeline-end"><span></span><p>值得跟的，收进雷达；试过真有用的，放进 AI 库。</p></div>
       </section>
     </main>
 

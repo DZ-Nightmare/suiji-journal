@@ -2,11 +2,11 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1794542528999';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1795601435490';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
-  key: null, notes: [], lists: [], hasLists: false, ai: [], hasAI: false, media: new Map(), urls: new Set(),
+  key: null, notes: [], lists: [], hasLists: false, ai: [], hasAI: false, radar: [], hasRadar: false, media: new Map(), urls: new Set(),
   session: 0, currentAnchor: null, currentDetail: null, detailDepth: 0, view: 'notes',
   ascending: false, calendar: '', listSort: 'added', aiSort: 'added',
   lastActive: Date.now(),
@@ -82,6 +82,9 @@ async function unlock(event) {
     // AI 库：payload.ai 不存在（旧构建数据）时隐藏入口；空数组照常展示
     state.hasAI = Array.isArray(payload.ai);
     state.ai = state.hasAI ? payload.ai : [];
+    // AI 雷达：payload.radar 不存在时隐藏入口（与 AI 库同款降级）
+    state.hasRadar = Array.isArray(payload.radar);
+    state.radar = state.hasRadar ? payload.radar : [];
     state.session++;
     state.lastActive = Date.now();
     state.calendar = state.notes.length
@@ -142,6 +145,7 @@ function revealJournal() {
     if (hash.startsWith('card-')) openNote(hash, true);
     else if (hash.startsWith('list-') && state.hasLists) openList(hash, true);
     else if (hash.startsWith('ai-') && state.hasAI) openAI(hash, true);
+    else if (hash.startsWith('radar-') && state.hasRadar) { setView('radar', true); window.radarModule.renderRadar(); }
     window.scrollTo(0, 0);
   };
   // 书本插画在手机端隐藏：不可见时跳过翻书，直接登场（避免白等）
@@ -284,9 +288,15 @@ function populate() {
   $('list-count').textContent = state.lists.length;
   $('ai-nav').hidden = !state.hasAI;
   $('ai-count').textContent = state.ai.length;
-  $('view-switch').hidden = !state.hasLists && !state.hasAI;
+  $('radar-nav').hidden = !state.hasRadar;
+  $('radar-count').textContent = state.radar.length;
+  $('view-switch').hidden = !state.hasLists && !state.hasAI && !state.hasRadar;
   setupListFilters();
   setupAIFilters();
+  if (window.radarModule) {
+    window.radarModule.initRadar(state);
+    window.radarModule.setupRadarFilters();
+  }
 }
 
 /* ---------- 视图切换（时间轴 / 书影 / AI 库） ---------- */
@@ -295,20 +305,23 @@ function setView(view, silent) {
   $('view-notes').hidden = view !== 'notes';
   $('view-lists').hidden = view !== 'lists';
   $('view-ai').hidden = view !== 'ai';
-  $('breadcrumb-page').textContent = view === 'lists' ? '书影' : view === 'ai' ? 'AI 库' : '时间轴';
+  $('view-radar').hidden = view !== 'radar';
+  $('breadcrumb-page').textContent = view === 'lists' ? '书影' : view === 'ai' ? 'AI 库' : view === 'radar' ? 'AI 雷达' : '时间轴';
   $('all-notes').classList.toggle('active', view === 'notes');
   $('list-nav').classList.toggle('active', view === 'lists');
   $('ai-nav').classList.toggle('active', view === 'ai');
+  $('radar-nav').classList.toggle('active', view === 'radar');
   // 移动端视图切换控件同步
-  [['mobile-view-notes', 'notes'], ['mobile-view-lists', 'lists'], ['mobile-view-ai', 'ai']].forEach(([id, v]) => {
+  [['mobile-view-notes', 'notes'], ['mobile-view-lists', 'lists'], ['mobile-view-ai', 'ai'], ['mobile-view-radar', 'radar']].forEach(([id, v]) => {
     const btn = $(id);
     btn.classList.toggle('active', view === v);
     btn.setAttribute('aria-selected', String(view === v));
   });
-  $('search').placeholder = view === 'lists' ? '找一本书，一部电影…' : view === 'ai' ? '找一个项目、工具、文章…' : '找一段话，或一个念头…';
+  $('search').placeholder = view === 'lists' ? '找一本书，一部电影…' : view === 'ai' ? '找一个项目、工具、文章…' : view === 'radar' ? '雷达只看信号流，搜索去 AI 库' : '找一段话，或一个念头…';
   if (silent) return;
   if (view === 'lists') renderLists();
   else if (view === 'ai') renderAI();
+  else if (view === 'radar') { window.radarModule.renderRadar(); window.radarModule.refreshRadar(); }
   else render();
 }
 
@@ -1278,9 +1291,12 @@ $('all-notes').addEventListener('click', () => { setView('notes'); resetFilters(
 ['clear-filter', 'empty-reset'].forEach(id => $(id).addEventListener('click', resetFilters));
 $('list-nav').addEventListener('click', () => setView('lists'));
 $('ai-nav').addEventListener('click', () => setView('ai'));
+$('radar-nav').addEventListener('click', () => setView('radar'));
 $('mobile-view-notes').addEventListener('click', () => setView('notes'));
 $('mobile-view-lists').addEventListener('click', () => setView('lists'));
 $('mobile-view-ai').addEventListener('click', () => setView('ai'));
+$('mobile-view-radar').addEventListener('click', () => setView('radar'));
+$('radar-refresh').addEventListener('click', () => window.radarModule.refreshRadar());
 $('lists-sort').addEventListener('click', () => {
   const order = ['added', 'priority', 'rating'];
   state.listSort = order[(order.indexOf(state.listSort) + 1) % order.length];

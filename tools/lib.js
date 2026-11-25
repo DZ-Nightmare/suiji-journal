@@ -379,6 +379,64 @@ function scanAI(config) {
   }));
 }
 
+/* 扫描 05-Radar，产出与网页端约定一致的 radar 数组（未加密）
+   AI 雷达：从公开源（GitHub/HN/HF）拉到的信号，被「收进雷达」后落进 vault/05-Radar。
+   字段：url 必填（信号来源链接）、why 缘何关注（FDE 三问、网页端雷达的「为什么值得看」）、
+   status 复用 AI 库四态（want/trying/kept/dropped，默认 want）。与 scanAI 同构。 */
+function scanRadar(config) {
+  const vaultDir = path.join(ROOT, config.vault || 'vault');
+  const radarDir = path.join(vaultDir, '05-Radar');
+  const attachDir = path.join(vaultDir, 'Attachments');
+  if (!fs.existsSync(radarDir)) return [];
+
+  const validStatus = ['want', 'trying', 'kept', 'dropped'];
+  const parsed = fs.readdirSync(radarDir).filter(n => n.endsWith('.md')).sort().map(name => {
+    const file = path.join(radarDir, name);
+    const text = fs.readFileSync(file, 'utf8');
+    const { data, body } = parseFrontmatter(text);
+    const rel = path.posix.join('05-Radar', name);
+    const attachNames = findAttachments(body, data);
+    const attachments = [];
+    for (const aName of attachNames) {
+      const afile = path.join(attachDir, aName);
+      if (!fs.existsSync(afile)) { console.warn(`  ! 附件缺失：${aName}（${rel}）`); continue; }
+      const content = fs.readFileSync(afile);
+      attachments.push({ name: aName, content, size: content.length, mime: mimeOf(aName), hash: crypto.createHash('sha256').update(content).digest('hex').slice(0, 20) });
+    }
+    return {
+      rel,
+      added: String(data.added || data.date || '').slice(0, 10),
+      category: String(data.category || ''),  // 信号分类：模型 / 工具 / 实践 / 论文 / 行业
+      title: shortTitle(data, body),
+      url: data.url ? String(data.url) : '',
+      why: data.why ? String(data.why) : '',
+      status: validStatus.includes(String(data.status)) ? String(data.status) : 'want',
+      tags: Array.isArray(data.tags) ? data.tags.map(String) : (data.tags ? [String(data.tags)] : []),
+      remarks: extractRemarks(body),
+      links: findWikiLinks(body),
+      body: body.trim(), raw: text, attachments,
+    };
+  }).filter(n => n.added);
+
+  parsed.sort((a, b) => a.added.localeCompare(b.added) || a.rel.localeCompare(b.rel));
+  return parsed.map((n, i) => ({
+    id: `Radar-${String(i + 1).padStart(3, '0')}`,
+    anchor: `radar-${String(i + 1).padStart(3, '0')}`,
+    rel: n.rel,
+    category: n.category, title: n.title, url: n.url, why: n.why,
+    status: n.status,
+    added: n.added,
+    tags: n.tags, remarks: n.remarks, links: n.links,
+    body: n.body, raw: n.raw,
+    attachments: n.attachments.map(a => ({
+      name: a.name, mime: a.mime, size: a.size,
+      file: `media/${a.hash}.bin`,
+      aad: `attachment:${a.hash}`,
+    })),
+    _content: n.attachments.map(a => ({ hash: a.hash, content: a.content })),
+  }));
+}
+
 function mimeOf(name) {
   const ext = path.extname(name).toLowerCase();
   return ({
@@ -391,4 +449,4 @@ function mimeOf(name) {
   })[ext] || 'application/octet-stream';
 }
 
-module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, decryptPayload, decryptAttachment, parseFrontmatter, scanVault, scanLists, scanAI, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };
+module.exports = { ROOT, ITERATIONS, loadConfig, deriveKey, encryptPayload, encryptAttachment, decryptPayload, decryptAttachment, parseFrontmatter, scanVault, scanLists, scanAI, scanRadar, findWikiLinks, mimeOf, weekdayOf, randBytes, b64 };

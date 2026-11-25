@@ -6,7 +6,8 @@ description: >
   触发词：记随记、写随记、随笔、写一篇随笔、存进随记、记到随记、把今天记下来、沉淀专题、
   生成日记随笔、推送随记、发布随记、更新随记、随记推送、journal、
   想读、想看、书单、片单、书影清单、记感想、标记读完、标记看完、看到哪了、读到哪了、
-  记个工具、收藏项目、存个 Skill、AI 库、记个文章、好用的 AI 工具。
+  记个工具、收藏项目、存个 Skill、AI 库、记个文章、好用的 AI 工具、
+  收进雷达、AI 雷达。
   输入不限：一段话 / 聊天记录 / 图片 / 录音 / 文档 / 网页链接 / 会议内容，都可生成随记。
   NOT for：写代码、写报告长文（非随笔）、公开发布的内容；那些走其他工作流。
 ---
@@ -143,6 +144,36 @@ node tools/ai.js rm "Excalidraw"
 4. `--why` 是详情页的**完整描述**（一句话缘由，可稍长）；`--brief` 是卡片封面的**关键词**
    （2-4 个词，逗号分隔，如「微交互、磁吸选择」）——卡片只显示关键词，不显示长句
    （2026-11-11 用户要求精简过两次：先精简成一句，再精简成几个词）。
+
+## AI 雷达（05-Radar，公开信号收进随记）
+
+网页端「AI 雷达」视图实时从 GitHub / Hacker News / HuggingFace(镜像) 拉信号；
+值得跟的条目用下面的命令**收进雷达**（存成 vault/05-Radar 条目，随构建加密进载荷），
+四态复用 AI 库（想试→在试→已用/淘汰）。条目同样**不是随记**（标题=名称、正文=感想、
+tags=纯主题词，三条豁免同书影/AI 库）：
+
+```bash
+# 收进雷达（category 五选一：模型/工具/实践/论文/行业；url/why 来自信号卡，先确认不编造）
+node tools/radar.js add "Anthropic 工程实践" --category 实践 --url https://... --why "官方一手，Building Agents 值得读"
+node tools/radar.js add "某个新仓库" --category 工具 --url https://github.com/... --why "..."
+
+# 状态流转（want 想试 / trying 在试 / kept 已用 / dropped 淘汰，允许回退）
+node tools/radar.js status "Anthropic 工程实践" trying
+
+# 感想 / 关联随记 / 感想升格随记（同书影/AI 库）
+node tools/radar.js remark "某个新仓库" "跑通了，能进日常工具链"
+node tools/radar.js link "某个新仓库" "01-Journals/2026/11/2026-11-25"
+node tools/radar.js promote "某个新仓库" 11-25 "01-Journals/2026/11/2026-11-25"
+
+# 改名 / 移除（自动登记墓碑，跨设备同步后同步删除）
+node tools/radar.js rename "旧名" "新名" ｜ node tools/radar.js rm "某条"
+
+# 查看 / 列出：node tools/radar.js show "某条" ｜ node tools/radar.js list [--category 模型] [--status want]
+# 通用参数 --push：构建后直接推送
+```
+
+**入库规范**：先搜索确认标题/链接（信号卡给的是候选，不确定就问用户）；url 只收 http(s)；
+试过真有用的记得 `kept` 并考虑也 `ai.js add` 进 AI 库。
 
 ## 多设备同步（多台设备记录必读）
 
