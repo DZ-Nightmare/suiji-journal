@@ -2,7 +2,7 @@
 /* 随记 · 前端逻辑：解锁 / 时间轴 / 筛选 / 日历 / 阅读器 / 附件解密 */
 const $ = id => document.getElementById(id);
 const decoder = new TextDecoder();
-const VIEWER_VER = '1795603529076';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
+const VIEWER_VER = '1795605943049';  // 构建时自动替换为时间戳，防止 viewer.html 旧缓存
 const encoder = new TextEncoder();
 
 const state = {
@@ -1331,6 +1331,17 @@ $('reader').addEventListener('close', () => {
 });
 ['reader', 'lightbox'].forEach(id => $(id).addEventListener('click', e => { if (e.target === $(id)) $(id).close(); }));
 $('download-note').addEventListener('click', downloadNote);
+/* AI 点评：从当前打开的详情里取正文片段，交给 MIMO（浏览器直连，key 在本地） */
+$('ai-annotate').addEventListener('click', () => {
+  const d = state.currentDetail;
+  if (!d) return;
+  const row = d.kind === 'list' ? state.lists.find(n => n.anchor === d.anchor)
+    : d.kind === 'ai' ? state.ai.find(n => n.anchor === d.anchor)
+      : state.notes.find(n => n.anchor === d.anchor);
+  if (!row) return;
+  const body = (row.body || '').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, '$1');
+  window.aiModule.openPanel(body.slice(0, 4000), row.title || '');
+});
 
 document.addEventListener('keydown', e => {
   state.lastActive = Date.now();
