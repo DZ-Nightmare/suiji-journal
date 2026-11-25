@@ -146,7 +146,7 @@ function setupRadarFilters() {
     const el = $(container);
     if (!el) return;
     el.replaceChildren(...options.map(([value, label]) => {
-      const b = button(label, 'filter-chip', () => {
+      const b = button(label, 'radar-seg-btn', () => {
         radarState[key] = radarState[key] === value ? '' : value;
         renderRadar();
       });
@@ -173,54 +173,42 @@ function filteredRadarSignals() {
 function renderRadar() {
   const items = filteredRadarSignals();
   $('radar-count-line').textContent = radarState.loading ? '拉取中…' : `${items.length} 条信号 · 已收 ${radarState.saved.length}`;
-  $('radar-stats').textContent = radarState.saved.length
-    ? `已收进雷达 ${radarState.saved.length} 条（想试 ${radarState.saved.filter(e => e.status === 'want').length} · 在试 ${radarState.saved.filter(e => e.status === 'trying').length} · 已用 ${radarState.saved.filter(e => e.status === 'kept').length} · 淘汰 ${radarState.saved.filter(e => e.status === 'dropped').length}）`
-    : '还没收进任何信号——值得跟的点「收进雷达」，试过真有用的放进 AI 库';
+  $('radar-live-count').textContent = items.length;
+  $('radar-live-sources').textContent = new Set(items.map(s => s.source)).size;
+  $('radar-live-saved').textContent = radarState.saved.length;
   $('radar-empty').hidden = items.length > 0;
   if (!items.length) {
     $('radar-empty-title').textContent = radarState.loading ? '正在拉信号…' : '这里没有这个信号。';
-    $('radar-empty-text').textContent = radarState.loading ? '从三个公开源现拉，稍等一下。' : '换个筛选，或点「刷新 ↻」重拉。';
+    $('radar-empty-text').textContent = radarState.loading ? '从三个公开源现拉，稍等一下。' : '换个频段，或点「⟳ 刷新」重拉。';
   }
   $('radar-feed').replaceChildren(...items.map(renderRadarCard));
-  document.querySelectorAll('#radar-cat-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.cat));
-  document.querySelectorAll('#radar-window-filter .filter-chip').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.win));
-  /* 已收条目区（可选）：显示收进雷达的精选 */
-  const savedBox = $('radar-saved');
-  if (savedBox) savedBox.replaceChildren(...radarState.saved.map(renderSavedRow));
+  document.querySelectorAll('#radar-cat-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.cat));
+  document.querySelectorAll('#radar-window-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.win));
+  document.querySelectorAll('#radar-saved-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === (radarState.savedStatus || '')));
   renderRadarChannels();
 }
 
 function renderRadarCard(sig) {
-  const card = node('article', undefined, `list-card radar-card ${CAT_TONE[sig.category] || 'cat-tool'}`);
+  const card = node('article', undefined, `radar-card ${CAT_TONE[sig.category] || 'cat-tool'}`);
   card.id = `sig-${sig.id}`;
-  /* 头部：分类 + 来源 + 时间 */
-  const head = node('div', undefined, 'list-card-head');
-  const catDot = node('span', sig.category, 'radar-cat');
-  head.append(catDot, node('span', sig.source, 'list-kind'), node('span', agoText(sig.at), 'list-card-meta'));
+  /* 头部：分类徽章 + 来源 · 时间 */
+  const head = node('div', undefined, 'radar-card-head');
+  const badge = node('span', sig.category, `radar-cat-badge ${CAT_TONE[sig.category] || 'cat-tool'}`);
+  head.append(badge, node('span', `${sig.source} · ${agoText(sig.at)}`, 'radar-card-meta'));
   card.append(head);
-  /* 标题 */
-  const title = node('h3', undefined, 'list-card-title');
-  title.append(node('span', sig.title, 'card-title'));
+  /* 标题（可点打开原文） */
+  const title = node('h3', undefined, 'radar-card-title');
+  const t = node('a', sig.title, 'radar-card-title-link');
+  if (sig.url && /^https?:\/\//i.test(sig.url)) { t.href = sig.url; t.target = '_blank'; t.rel = 'noreferrer noopener'; }
+  title.append(t);
   card.append(title);
   /* 摘要 */
-  if (sig.summary) card.append(node('p', sig.summary, 'radar-summary'));
-  /* 为什么值得看（FDE 三问） */
-  card.append(node('p', '◉ ' + sig.why, 'radar-why'));
-  /* 关键词胶囊 */
-  const words = briefWords(sig.title);
-  if (words.length) {
-    const tags = node('div', undefined, 'card-tags');
-    words.forEach(w => tags.append(node('span', w, 'card-tag')));
-    card.append(tags);
-  }
-  /* 链接 + 收进雷达 */
-  const foot = node('div', undefined, 'radar-foot');
-  if (sig.url && /^https?:\/\//i.test(sig.url)) {
-    const a = node('a', '打开 ↗', 'read-more');
-    a.href = sig.url; a.target = '_blank'; a.rel = 'noreferrer noopener';
-    foot.append(a);
-  }
-  foot.append(button('收进雷达', 'read-more', () => openRadarKeepMenu(sig)));
+  if (sig.summary) card.append(node('p', sig.summary, 'radar-card-summary'));
+  /* 底部：为什么值得看 + 收进雷达 */
+  const foot = node('div', undefined, 'radar-card-foot');
+  foot.append(node('p', sig.why, 'radar-card-why'));
+  const keep = button('收进雷达', 'radar-keep-btn', () => openRadarKeepMenu(sig));
+  foot.append(keep);
   card.append(foot);
   return card;
 }
@@ -243,17 +231,20 @@ function renderRadarChannels() {
   box.hidden = false;
   box.replaceChildren();
   const title = node('div', undefined, 'radar-channels-title');
-  title.append(node('p', '渠道目录', 'eyebrow'), node('h2', '自动信号不够，还有这些入口'));
+  title.append(node('p', 'CHANNEL DIRECTORY', 'radar-eyebrow'), node('h2', '信号之外，这些入口每天值得扫一眼'));
   box.append(title);
   for (const group of RADAR_CHANNELS) {
     const sec = node('section', undefined, 'radar-chan-group');
-    sec.append(node('h3', group.g === '每天' ? '每天扫一眼' : group.g === '每周' ? '每周订阅' : '官方一手', 'radar-chan-h'));
-    const ul = node('ul');
+    const h = node('h3', group.g === '每天' ? '每天扫一眼' : group.g === '每周' ? '每周订阅' : '官方一手', 'radar-chan-h');
+    const freq = node('span', group.g.toUpperCase(), 'radar-chan-freq');
+    sec.append(h, freq);
+    const ul = node('ul', undefined, 'radar-chan-list');
     for (const [name, url, what] of group.items) {
       const li = node('li');
-      const a = node('a', name);
+      const a = node('a', name, 'radar-chan-link');
       a.href = url; a.target = '_blank'; a.rel = 'noreferrer noopener';
-      li.append(a, node('span', what, 'radar-chan-what'));
+      const arrow = node('span', '↗', 'radar-chan-arrow');
+      li.append(a, arrow, node('span', what, 'radar-chan-what'));
       ul.append(li);
     }
     sec.append(ul);
@@ -263,18 +254,18 @@ function renderRadarChannels() {
 
 /* ---------- 收进雷达菜单 ---------- */
 function openRadarKeepMenu(sig) {
-  const menu = node('div', undefined, 'ai-status-menu radar-menu');
+  const menu = node('div', undefined, 'radar-menu');
   menu.setAttribute('role', 'menu');
-  menu.append(node('p', '网站是加密只读的，选中会复制一句话给随记 AI，说出去就收进雷达（落盘 + 加密推送）：', 'ai-status-menu-hint'));
+  menu.append(node('p', '网站是加密只读的，选中会复制一句话给随记 AI，说出去就收进雷达（落盘 + 加密推送）：', 'radar-menu-hint'));
   const command = radarCommand(sig);
-  const item = button(`收进雷达：${sig.title}`, 'ai-status-item', () => {
+  const item = button(`收进雷达：${sig.title}`, 'radar-menu-item', () => {
     try { navigator.clipboard.writeText(command); toast(`已复制：${command}`); }
     catch { toast(`请复制这句话：${command}`); }
     menu.remove();
   });
-  item.append(node('span', `会存成 vault/05-Radar 条目（${sig.category}）`, 'ai-status-item-desc'));
+  item.append(node('span', `会存成 vault/05-Radar 条目（${sig.category}）`, 'radar-menu-desc'));
   menu.append(item);
-  const cancel = button('取消', 'ai-status-item', () => menu.remove());
+  const cancel = button('取消', 'radar-menu-item', () => menu.remove());
   menu.append(cancel);
   document.body.append(menu);
   /* 简单定位到卡片附近 */
@@ -288,18 +279,18 @@ function openRadarKeepMenu(sig) {
 async function refreshRadar() {
   if (radarState.loading) return;
   radarState.loading = true;
-  $('radar-fetched').textContent = '正在拉取…';
+  $('radar-fetched').textContent = '正在接入信号…';
   $('radar-source-line').textContent = '';
   renderRadar();
   try {
     radarState.signals = await fetchRadarSignals();
-    $('radar-fetched').textContent = `信号拉取于 ${new Date().toLocaleString('zh-CN', { hour12: false })}`;
+    $('radar-fetched').textContent = `信号接入 ${new Date().toLocaleString('zh-CN', { hour12: false })}`;
     const srcs = [...new Set(radarState.signals.map(s => s.source))];
     $('radar-source-line').textContent = `来源：${srcs.join(' / ') || '都没拉通'}`;
   } catch (e) {
     console.warn('雷达刷新失败', e);
-    $('radar-fetched').textContent = '拉取失败';
-    $('radar-source-line').textContent = '网络不通时，下面渠道目录也能帮你找到入口';
+    $('radar-fetched').textContent = '接入失败';
+    $('radar-source-line').textContent = '网络不通时，渠道目录也能帮你找到入口';
   }
   radarState.loading = false;
   renderRadar();

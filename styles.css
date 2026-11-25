@@ -880,89 +880,345 @@ body.sheet-open { overflow: hidden; }
   .view-switch-btn.active { background: var(--surface); color: var(--accent-dark); box-shadow: var(--shadow); }
 }
 
-/* ---------- AI 雷达（2026-11-25） ---------- */
-/* 雷达 Hero：纸面风格上唯一一块深色「夜视屏」，信号流卡片保持浅色纸面 */
+
+/* ═══════════ AI 雷达 · 雷达站控制室设计系统（2026-11-25 重设计） ═══════════
+   设计语言：深色雷达站 + 霓虹辉光。站点本身就是深色主题，雷达区不再用纸面白卡，
+   而是同底色的「玻璃控制台」：半透明卡片、1px 光边、霓虹分类色、扫描线、网格光流。
+   灵感：Lucian #226 网格光流（纯 CSS 实现）+ 经典雷达示波器。 */
+:root {
+  --rd-bg: #12161d;
+  --rd-surface: rgba(28, 34, 44, 0.72);
+  --rd-surface-hover: rgba(36, 43, 55, 0.85);
+  --rd-line: rgba(148, 163, 184, 0.16);
+  --rd-line-bright: rgba(148, 163, 184, 0.32);
+  --rd-text: #e6ebf2;
+  --rd-muted: #94a3b8;
+  --rd-dim: #5c6b7e;
+  --rd-accent: #38bdf8;
+  --rd-accent-soft: rgba(56, 189, 248, 0.14);
+}
+
+#view-radar {
+  padding: 8px 4px 60px;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: var(--rd-text);
+}
+
+/* ── Hero：雷达站主屏 ── */
 #radar-hero {
-  display: flex; align-items: center; gap: 28px; margin: 6px 2px 16px;
-  padding: 26px 30px; border-radius: var(--radius);
-  background: radial-gradient(120% 130% at 20% 0%, #20312c, #16231f 55%, #101a17);
-  color: #eef2ec; overflow: hidden;
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--rd-line);
+  background:
+    radial-gradient(90% 120% at 85% -10%, rgba(56, 189, 248, 0.10), transparent 55%),
+    radial-gradient(70% 100% at 0% 110%, rgba(129, 140, 248, 0.08), transparent 50%),
+    linear-gradient(180deg, rgba(23, 28, 38, 0.9), rgba(15, 19, 26, 0.95));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
 }
-#radar-hero .eyebrow { color: #9fd0b8; }
-#radar-hero h1 { color: #f4f7f2; margin: 8px 0 10px; font-size: 30px; }
-#radar-hero .hero-description { color: #c3cec6; margin: 0; }
-#radar-hero .hero-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; color: #93a49a; font-size: 12.5px; }
-#radar-sweep-box { position: relative; width: 150px; height: 150px; flex-shrink: 0; }
-#radar-sweep-box .radar-ring { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.16); border-radius: 50%; }
-#radar-sweep-box .radar-ring.r2 { inset: 24px; }
-#radar-sweep-box .radar-ring.r3 { inset: 48px; }
-#radar-sweep-box::before, #radar-sweep-box::after {
-  content: ''; position: absolute; background: rgba(255,255,255,.10);
+/* 网格底（Lucian #226 变体）：细网格 + 顶部渐隐 */
+.radar-grid-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 85%);
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 85%);
 }
-#radar-sweep-box::before { left: 50%; top: 0; bottom: 0; width: 1px; }
-#radar-sweep-box::after { top: 50%; left: 0; right: 0; height: 1px; }
-#radar-sweep-box .radar-sweep {
+/* 网格光流：一道亮带从下往上缓缓流过网格（Lucian #226 的核心动效） */
+.radar-grid-flow {
+  position: absolute; inset: -40% 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.07) 45%, rgba(56, 189, 248, 0.14) 50%, rgba(56, 189, 248, 0.07) 55%, transparent);
+  animation: radar-grid-flow 9s linear infinite;
+}
+@keyframes radar-grid-flow { from { transform: translateY(-55%); } to { transform: translateY(55%); } }
+/* 地平线辉光：底边一道霓虹 */
+.radar-horizon {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55) 30%, rgba(129, 140, 248, 0.55) 70%, transparent);
+  box-shadow: 0 -8px 32px rgba(56, 189, 248, 0.18);
+}
+.radar-hero-inner {
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between; gap: 32px;
+  padding: 40px 44px 26px;
+}
+.radar-hero-text { min-width: 0; flex: 1; }
+.radar-eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  font-size: 11px; letter-spacing: 2.5px; font-weight: 600;
+  color: var(--rd-accent); text-transform: uppercase;
+}
+.radar-pulse-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--rd-accent);
+  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+  animation: radar-pulse 2s ease-out infinite;
+}
+@keyframes radar-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.45); }
+  100% { box-shadow: 0 0 0 12px rgba(56, 189, 248, 0); }
+}
+#radar-hero h1 {
+  margin: 0 0 14px;
+  font-size: 42px; font-weight: 700; letter-spacing: 1px;
+  background: linear-gradient(100deg, #f2f6fb 20%, #7dd3fc 55%, #a5b4fc 80%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.radar-hero-sub {
+  margin: 0; font-size: 14.5px; line-height: 1.8; color: var(--rd-muted);
+}
+.radar-hero-stats { display: flex; gap: 12px; margin-top: 26px; }
+.radar-stat {
+  min-width: 96px; padding: 12px 16px;
+  border: 1px solid var(--rd-line); border-radius: 12px;
+  background: rgba(15, 19, 26, 0.55); backdrop-filter: blur(8px);
+}
+.radar-stat b {
+  display: block; font-size: 26px; font-weight: 700; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #eaf3fb, #8fd4f5); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.radar-stat span { display: block; margin-top: 5px; font-size: 11.5px; letter-spacing: 1.5px; color: var(--rd-dim); }
+
+/* 雷达示波器 */
+#radar-scope {
+  position: relative; flex-shrink: 0; width: 200px; height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.05), transparent 70%);
+}
+#radar-scope .radar-ticks {
   position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(159,208,184,.5), rgba(159,208,184,.08) 52deg, transparent 62deg);
-  animation: radar-spin 3.2s linear infinite;
+  background: repeating-conic-gradient(from 0deg, rgba(148, 163, 184, 0.35) 0deg 1deg, transparent 1deg 12deg);
+  mask-image: radial-gradient(circle, transparent 62%, #000 63%, #000 68%, transparent 69%);
+  -webkit-mask-image: radial-gradient(circle, transparent 62%, #000 63%, #000 68%, transparent 69%);
 }
-#radar-sweep-box .radar-blip {
-  position: absolute; width: 7px; height: 7px; border-radius: 50%;
-  background: #9fd0b8; box-shadow: 0 0 10px 2px rgba(159,208,184,.7);
-  animation: radar-breathe 2.6s ease-in-out infinite;
+#radar-scope .radar-ring { position: absolute; border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 50%; }
+#radar-scope .r1 { inset: 0; }
+#radar-scope .r2 { inset: 33px; }
+#radar-scope .r3 { inset: 66px; }
+#radar-scope .radar-axis { position: absolute; background: rgba(56, 189, 248, 0.14); }
+#radar-scope .radar-axis.v { left: 50%; top: 0; bottom: 0; width: 1px; }
+#radar-scope .radar-axis.h { top: 50%; left: 0; right: 0; height: 1px; }
+#radar-scope .radar-sweep {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(56, 189, 248, 0.55), rgba(56, 189, 248, 0.10) 48deg, transparent 60deg);
+  animation: radar-spin 3.6s linear infinite;
+  mix-blend-mode: screen;
 }
-#radar-sweep-box .rb1 { top: 22%; left: 26%; }
-#radar-sweep-box .rb2 { top: 30%; left: 62%; animation-delay: .9s; }
-#radar-sweep-box .rb3 { top: 66%; left: 30%; animation-delay: 1.7s; }
+#radar-scope .radar-blip {
+  position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: #7dd3fc; box-shadow: 0 0 12px 3px rgba(56, 189, 248, 0.75);
+  animation: radar-breathe 2.8s ease-in-out infinite;
+}
+#radar-scope .rb1 { top: 24%; left: 30%; }
+#radar-scope .rb2 { top: 32%; left: 66%; animation-delay: .8s; }
+#radar-scope .rb3 { top: 68%; left: 34%; animation-delay: 1.5s; }
+#radar-scope .rb4 { top: 58%; left: 78%; animation-delay: 2.1s; background: #c4b5fd; box-shadow: 0 0 12px 3px rgba(167, 139, 250, 0.7); }
 @keyframes radar-spin { to { transform: rotate(360deg); } }
 @keyframes radar-breathe { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 
-/* 雷达卡片：复用 list-card 纸面骨架，加分类色条和「为什么值得看」行 */
-.radar-card { border-inline-start: 3px solid var(--line); }
-.radar-card .radar-cat {
-  font-size: 12px; font-weight: 600; letter-spacing: .5px;
-  padding: 2px 9px; border-radius: 999px; background: var(--soft); color: var(--accent-dark);
+.radar-hero-foot {
+  position: relative;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 44px 16px;
+  border-top: 1px solid var(--rd-line);
+  font-size: 12px; color: var(--rd-dim);
 }
-.radar-card.cat-model { border-inline-start-color: #5b7db3; }
-.radar-card.cat-tool { border-inline-start-color: #7d6ab3; }
-.radar-card.cat-practice { border-inline-start-color: #4f9e6b; }
-.radar-card.cat-paper { border-inline-start-color: #c07f3d; }
-.radar-card.cat-industry { border-inline-start-color: #4f8fa3; }
-.radar-card .radar-summary {
-  margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--body);
+.radar-sep { opacity: .5; }
+.radar-refresh-btn {
+  margin-left: auto;
+  padding: 7px 16px;
+  border: 1px solid var(--rd-line-bright); border-radius: 999px;
+  background: rgba(56, 189, 248, 0.08); color: #9fd7f5;
+  font-size: 12.5px; letter-spacing: 1px; cursor: pointer;
+  transition: border-color .18s, background .18s, color .18s, box-shadow .18s;
+}
+.radar-refresh-btn:hover { border-color: var(--rd-accent); background: var(--rd-accent-soft); color: #d3effd; box-shadow: 0 0 18px rgba(56, 189, 248, 0.25); }
+
+/* ── 控制台（频段 / 窗口分段器）── */
+.radar-console {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  margin: 22px 2px 18px; padding: 12px 16px;
+  border: 1px solid var(--rd-line); border-radius: 14px;
+  background: var(--rd-surface); backdrop-filter: blur(10px);
+}
+.radar-console-group { display: flex; align-items: center; gap: 10px; }
+.radar-console-label {
+  font-size: 11px; letter-spacing: 2px; color: var(--rd-dim); text-transform: uppercase;
+}
+.radar-seg { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--rd-line); border-radius: 999px; background: rgba(15, 19, 26, 0.5); }
+.radar-seg-btn {
+  padding: 6px 15px;
+  border: 0; border-radius: 999px;
+  background: transparent; color: var(--rd-muted);
+  font-size: 12.5px; cursor: pointer;
+  transition: background .18s, color .18s, box-shadow .18s;
+}
+.radar-seg-btn:hover { color: var(--rd-text); }
+.radar-seg-btn.active {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.10));
+  color: #bde8fd; box-shadow: 0 0 14px rgba(56, 189, 248, 0.22), inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+}
+.radar-count-line { margin-left: auto; font-size: 12.5px; color: var(--rd-dim); font-variant-numeric: tabular-nums; }
+.radar-saved-line {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: -6px 2px 18px; padding: 10px 16px;
+  border: 1px dashed var(--rd-line-bright); border-radius: 14px;
+  background: rgba(28, 34, 44, 0.4);
+}
+.radar-saved-line[hidden] { display: none; }
+
+/* ── 信号流卡片：玻璃霓虹 ── */
+.radar-feed {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px; margin: 6px 2px 0;
+}
+.radar-card {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px 17px 14px;
+  border: 1px solid var(--rd-line); border-radius: 14px;
+  background: var(--rd-surface); backdrop-filter: blur(10px);
+  transition: border-color .2s, background .2s, transform .2s, box-shadow .2s;
+}
+/* 霓虹分类色（卡顶部光边 + 徽章底色） */
+.radar-card::before {
+  content: ''; position: absolute; top: 0; left: 14%; right: 14%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cat-glow, rgba(56, 189, 248, 0.7)), transparent);
+  opacity: .55; transition: opacity .2s;
+}
+.radar-card:hover {
+  border-color: var(--rd-line-bright); background: var(--rd-surface-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35), 0 0 22px var(--cat-glow-soft, rgba(56, 189, 248, 0.10));
+}
+.radar-card:hover::before { opacity: 1; }
+.radar-card.cat-model { --cat-glow: rgba(96, 165, 250, 0.8); --cat-glow-soft: rgba(96, 165, 250, 0.14); }
+.radar-card.cat-tool { --cat-glow: rgba(167, 139, 250, 0.8); --cat-glow-soft: rgba(167, 139, 250, 0.14); }
+.radar-card.cat-practice { --cat-glow: rgba(52, 211, 153, 0.8); --cat-glow-soft: rgba(52, 211, 153, 0.14); }
+.radar-card.cat-paper { --cat-glow: rgba(251, 191, 36, 0.8); --cat-glow-soft: rgba(251, 191, 36, 0.14); }
+.radar-card.cat-industry { --cat-glow: rgba(45, 212, 191, 0.8); --cat-glow-soft: rgba(45, 212, 191, 0.14); }
+
+.radar-card-head { display: flex; align-items: center; gap: 9px; }
+.radar-cat-badge {
+  padding: 3px 11px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+  background: var(--cat-glow-soft, var(--rd-accent-soft));
+  color: var(--cat-glow, #7dd3fc);
+}
+.radar-card-meta { font-size: 12px; color: var(--rd-dim); font-variant-numeric: tabular-nums; }
+.radar-card-title { margin: 0; }
+.radar-card-title-link {
+  color: var(--rd-text); text-decoration: none;
+  font-size: 15.5px; font-weight: 600; line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.radar-card .radar-why {
-  margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--muted);
-  border-inline-start: 2px solid var(--line); padding-inline-start: 8px;
+.radar-card-title-link:hover { color: #9fd7f5; text-decoration: underline; text-underline-offset: 3px; }
+.radar-card-summary {
+  margin: 0; font-size: 13px; line-height: 1.65; color: var(--rd-muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.radar-card .card-title { cursor: default; }
-.radar-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 6px; }
-.radar-foot .read-more { margin-top: 0; }
-.radar-saved-row {
-  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  font-size: 13.5px; color: var(--body);
+.radar-card-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 10px; }
+.radar-card-why {
+  margin: 0; flex: 1;
+  font-size: 12px; line-height: 1.6; color: var(--rd-dim);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.radar-saved-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radar-keep-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--cat-glow, rgba(56, 189, 248, 0.5)); border-radius: 999px;
+  background: transparent; color: var(--cat-glow, #7dd3fc);
+  font-size: 12px; cursor: pointer;
+  transition: background .18s, box-shadow .18s;
+}
+.radar-keep-btn:hover {
+  background: var(--cat-glow-soft, var(--rd-accent-soft));
+  box-shadow: 0 0 16px var(--cat-glow-soft, rgba(56, 189, 248, 0.2));
+}
 
-/* 渠道目录：三栏纸面卡片，链接列表 */
-.radar-channels { margin-top: 26px; display: grid; gap: 16px; }
-.radar-channels-title { grid-column: 1 / -1; margin-bottom: 2px; }
-.radar-channels-title .eyebrow { margin: 0 0 6px; }
-.radar-channels-title h2 { margin: 0; font-family: var(--serif); font-size: 20px; color: var(--ink); }
-.radar-chan-group {
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 16px 18px; box-shadow: var(--shadow);
+/* ── 空态 ── */
+.radar-empty {
+  margin: 6px 2px; padding: 60px 20px; text-align: center;
+  border: 1px dashed var(--rd-line-bright); border-radius: 16px;
+  background: var(--rd-surface);
 }
-.radar-chan-h { margin: 0 0 10px; font-size: 13px; letter-spacing: 1px; color: var(--accent-dark); }
-.radar-chan-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.radar-chan-group li { display: flex; flex-direction: column; gap: 2px; }
-.radar-chan-group a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14.5px; }
-.radar-chan-group a:hover { color: var(--accent); text-decoration: underline; }
-.radar-chan-what { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
-@media (min-width: 760px) { .radar-channels { grid-template-columns: repeat(3, 1fr); } }
+.radar-empty-glyph { font-size: 34px; color: var(--rd-dim); }
+.radar-empty h3 { margin: 14px 0 6px; font-size: 17px; color: var(--rd-text); }
+.radar-empty p { margin: 0; font-size: 13px; color: var(--rd-muted); }
+
+/* ── 渠道目录 ── */
+.radar-channels { margin-top: 40px; }
+.radar-channels-title { margin-bottom: 18px; }
+.radar-channels-title .radar-eyebrow { margin-bottom: 8px; }
+.radar-channels-title h2 { margin: 0; font-size: 21px; font-weight: 600; color: var(--rd-text); }
+.radar-chan-group {
+  position: relative;
+  padding: 20px 22px 16px;
+  border: 1px solid var(--rd-line); border-radius: 16px;
+  background: var(--rd-surface); backdrop-filter: blur(10px);
+  transition: border-color .2s, background .2s;
+}
+.radar-chan-group:hover { border-color: var(--rd-line-bright); background: var(--rd-surface-hover); }
+.radar-chan-h { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--rd-text); }
+.radar-chan-freq {
+  display: inline-block; margin-bottom: 12px;
+  font-size: 10px; letter-spacing: 2px; color: var(--rd-accent); opacity: .8;
+}
+.radar-chan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.radar-chan-list li { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: baseline; }
+.radar-chan-link { color: var(--rd-text); text-decoration: none; font-size: 14px; font-weight: 600; }
+.radar-chan-link:hover { color: #9fd7f5; text-decoration: underline; text-underline-offset: 3px; }
+.radar-chan-arrow { color: var(--rd-dim); font-size: 12px; opacity: 0; transition: opacity .18s; }
+.radar-chan-list li:hover .radar-chan-arrow { opacity: 1; }
+.radar-chan-what { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.55; color: var(--rd-muted); }
+@media (min-width: 800px) { .radar-channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; } .radar-channels-title { grid-column: 1 / -1; } }
+
+/* ── 收进雷达菜单（深色玻璃浮层）── */
+.radar-menu {
+  position: fixed; z-index: 80; min-width: 240px; max-width: 320px;
+  padding: 14px;
+  border: 1px solid var(--rd-line-bright); border-radius: 14px;
+  background: rgba(18, 23, 31, 0.95); backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 24px rgba(56, 189, 248, 0.10);
+  color: var(--rd-text);
+}
+.radar-menu-hint { margin: 0 0 10px; font-size: 12px; line-height: 1.6; color: var(--rd-muted); }
+.radar-menu-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 12px; margin-bottom: 6px;
+  border: 1px solid var(--rd-line); border-radius: 10px;
+  background: rgba(28, 34, 44, 0.7); color: var(--rd-text);
+  font-size: 13px; cursor: pointer;
+  transition: border-color .18s, background .18s;
+}
+.radar-menu-item:hover { border-color: var(--rd-accent); background: var(--rd-accent-soft); }
+.radar-menu-item.current { border-color: var(--rd-accent); }
+.radar-menu-desc { display: block; margin-top: 3px; font-size: 11.5px; color: var(--rd-dim); }
 
 @media (prefers-reduced-motion: reduce) {
-  #radar-sweep-box .radar-sweep, #radar-sweep-box .radar-blip { animation: none; }
+  .radar-grid-flow, #radar-scope .radar-sweep, #radar-scope .radar-blip, .radar-pulse-dot { animation: none; }
+}
+
+/* ── 雷达响应式 ── */
+@media (max-width: 900px) {
+  #view-radar { padding: 4px 2px 40px; }
+  .radar-hero-inner { flex-direction: column; align-items: stretch; gap: 24px; padding: 28px 24px 20px; }
+  #radar-hero h1 { font-size: 32px; }
+  #radar-scope { align-self: center; width: 160px; height: 160px; }
+  #radar-scope .r2 { inset: 26px; }
+  #radar-scope .r3 { inset: 52px; }
+  .radar-hero-stats { gap: 8px; }
+  .radar-stat { min-width: 0; flex: 1; padding: 10px 12px; }
+  .radar-stat b { font-size: 21px; }
+  .radar-hero-foot { padding: 12px 24px 14px; }
+  .radar-refresh-btn { margin-left: 0; }
+  .radar-feed { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .radar-channels { grid-template-columns: 1fr; }
+  .radar-console { gap: 14px; }
+  .radar-count-line { margin-left: 0; }
 }
