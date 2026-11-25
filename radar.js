@@ -296,5 +296,59 @@ async function refreshRadar() {
   renderRadar();
 }
 
+/* ---------- 交互式背景：鼠标视差（2026-11-25）----------
+   鼠标在雷达视图内移动时：
+   - Hero 里的雷达示波器跟着轻微偏移（视差，最大 8px）
+   - 每张信号卡按与鼠标的距离产生轻微倾斜（最大 1.6deg），形成「朝向光标」的场
+   纯 transform + rAF 节流，不碰布局；reduced-motion 时完全禁用。 */
+let radarParallax = { on: false, mx: 0, my: 0, raf: 0 };
+function radarParallaxFrame() {
+  const scope = document.querySelector('#radar-scope');
+  if (scope) {
+    scope.style.transform = `translate(${radarParallax.mx * 8}px, ${radarParallax.my * 8}px)`;
+  }
+  for (const card of document.querySelectorAll('.radar-card')) {
+    const r = card.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = (radarParallax.mx * window.innerWidth - cx) / Math.max(window.innerWidth, 1);
+    const dy = (radarParallax.my * window.innerHeight - cy) / Math.max(window.innerHeight, 1);
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0.5) { card.style.transform = ''; continue; }
+    card.style.transform = `perspective(700px) rotateX(${(-dy * 1.6).toFixed(2)}deg) rotateY(${(dx * 1.6).toFixed(2)}deg)`;
+  }
+  radarParallax.raf = 0;
+}
+function radarParallaxMove(e) {
+  radarParallax.mx = e.clientX / Math.max(window.innerWidth, 1);
+  radarParallax.my = e.clientY / Math.max(window.innerHeight, 1);
+  if (!radarParallax.raf) radarParallax.raf = requestAnimationFrame(radarParallaxFrame);
+}
+function radarParallaxEnable(on) {
+  if (radarParallax.on === on) return;
+  radarParallax.on = on;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const hero = document.querySelector('#radar-hero');
+  if (!hero) return;
+  if (on) hero.addEventListener('mousemove', radarParallaxMove);
+  else {
+    hero.removeEventListener('mousemove', radarParallaxMove);
+    const scope = document.querySelector('#radar-scope');
+    if (scope) scope.style.transform = '';
+    for (const card of document.querySelectorAll('.radar-card')) card.style.transform = '';
+  }
+}
+/* 视图进入时开、离开时关（app.js 的 setView 调） */
+function radarParallaxAttach() {
+  const view = document.querySelector('#view-radar');
+  if (!view) return;
+  const observer = new MutationObserver(() => {
+    radarParallaxEnable(!view.hidden);
+  });
+  observer.observe(view, { attributes: true, attributeFilter: ['hidden'] });
+  radarParallaxEnable(!view.hidden);
+}
+document.addEventListener('DOMContentLoaded', radarParallaxAttach);
+
 /* 暴露给 app.js */
-window.radarModule = { initRadar, setupRadarFilters, renderRadar, refreshRadar };
+window.radarModule = { initRadar, setupRadarFilters, renderRadar, refreshRadar, radarParallaxEnable };

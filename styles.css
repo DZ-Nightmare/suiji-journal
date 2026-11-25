@@ -884,8 +884,43 @@ body.sheet-open { overflow: hidden; }
 /* ═══════════ AI 雷达 · 雷达站控制室设计系统（2026-11-25 重设计） ═══════════
    设计语言：深色雷达站 + 霓虹辉光。站点本身就是深色主题，雷达区不再用纸面白卡，
    而是同底色的「玻璃控制台」：半透明卡片、1px 光边、霓虹分类色、扫描线、网格光流。
-   灵感：Lucian #226 网格光流（纯 CSS 实现）+ 经典雷达示波器。 */
+   灵感：Lucian #226 网格光流（纯 CSS 实现）+ 经典雷达示波器。
+
+   主题适配（2026-11-25）：站点右下角可切 6 套配色（鼠尾草/陶土/樱语/薰衣草/晴空/夜阑），
+   雷达区不再用固定深色玻璃，而是每套主题定义一组 --rd-* 变量：
+   - 前 4 套浅色主题：纸面白玻璃 + 主题强调色发光，与站点其余部分同语言
+   - 夜阑（night）：保持原深色玻璃雷达站，换烛金强调色
+   --rd-accent 是雷达的「信号色」，--rd-cat-* 是五大分类霓虹色。 */
 :root {
+  --rd-bg: rgba(255, 255, 255, 0.06);
+  --rd-surface: rgba(255, 255, 255, 0.65);
+  --rd-surface-hover: rgba(255, 255, 255, 0.9);
+  --rd-line: color-mix(in srgb, var(--ink) 16%, transparent);
+  --rd-line-bright: color-mix(in srgb, var(--ink) 34%, transparent);
+  --rd-text: var(--ink);
+  --rd-muted: var(--body);
+  --rd-dim: var(--muted);
+  --rd-accent: var(--accent);
+  --rd-accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --rd-hero-bg:
+    radial-gradient(90% 120% at 85% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--soft) 70%, var(--surface)));
+  --rd-stat-num: var(--ink);
+  --rd-hero-title: linear-gradient(100deg, var(--ink) 20%, var(--accent-dark) 55%, var(--accent) 80%);
+}
+[data-theme="terracotta"] {
+  --rd-accent: #b0543a; --rd-accent-soft: rgba(176, 84, 58, 0.13);
+}
+[data-theme="sakura"] {
+  --rd-accent: #b04a64; --rd-accent-soft: rgba(176, 74, 100, 0.13);
+}
+[data-theme="lavender"] {
+  --rd-accent: #6b5ca8; --rd-accent-soft: rgba(107, 92, 168, 0.13);
+}
+[data-theme="sky"] {
+  --rd-accent: #2f7091; --rd-accent-soft: rgba(47, 112, 145, 0.13);
+}
+[data-theme="night"] {
   --rd-bg: #12161d;
   --rd-surface: rgba(28, 34, 44, 0.72);
   --rd-surface-hover: rgba(36, 43, 55, 0.85);
@@ -894,8 +929,34 @@ body.sheet-open { overflow: hidden; }
   --rd-text: #e6ebf2;
   --rd-muted: #94a3b8;
   --rd-dim: #5c6b7e;
-  --rd-accent: #38bdf8;
-  --rd-accent-soft: rgba(56, 189, 248, 0.14);
+  --rd-accent: #d2a765;
+  --rd-accent-soft: rgba(210, 167, 101, 0.14);
+  --rd-hero-bg:
+    radial-gradient(90% 120% at 85% -10%, rgba(210, 167, 101, 0.10), transparent 55%),
+    radial-gradient(70% 100% at 0% 110%, rgba(129, 140, 248, 0.08), transparent 50%),
+    linear-gradient(180deg, rgba(23, 28, 38, 0.9), rgba(15, 19, 26, 0.95));
+  --rd-stat-num: linear-gradient(180deg, #eaf3fb, #e8c990);
+  --rd-hero-title: linear-gradient(100deg, #f2f6fb 20%, #e8c990 55%, #c4b5fd 80%);
+}
+/* 分类霓虹色：浅色主题降低饱和度保证可读，night 主题全饱和度 */
+:root {
+  --rd-cat-model: color-mix(in srgb, var(--accent) 75%, #3b82f6);
+  --rd-cat-tool: color-mix(in srgb, var(--accent) 65%, #8b5cf6);
+  --rd-cat-practice: color-mix(in srgb, var(--accent) 70%, #10b981);
+  --rd-cat-paper: color-mix(in srgb, var(--accent) 70%, #f59e0b);
+  --rd-cat-industry: color-mix(in srgb, var(--accent) 70%, #0ea5e9);
+  --rd-cat-model-soft: color-mix(in srgb, var(--rd-cat-model) 14%, transparent);
+  --rd-cat-tool-soft: color-mix(in srgb, var(--rd-cat-tool) 14%, transparent);
+  --rd-cat-practice-soft: color-mix(in srgb, var(--rd-cat-practice) 14%, transparent);
+  --rd-cat-paper-soft: color-mix(in srgb, var(--rd-cat-paper) 14%, transparent);
+  --rd-cat-industry-soft: color-mix(in srgb, var(--rd-cat-industry) 14%, transparent);
+}
+[data-theme="night"] {
+  --rd-cat-model: #60a5fa; --rd-cat-tool: #a78bfa; --rd-cat-practice: #34d399;
+  --rd-cat-paper: #fbbf24; --rd-cat-industry: #2dd4bf;
+  --rd-cat-model-soft: rgba(96, 165, 250, 0.14); --rd-cat-tool-soft: rgba(167, 139, 250, 0.14);
+  --rd-cat-practice-soft: rgba(52, 211, 153, 0.14); --rd-cat-paper-soft: rgba(251, 191, 36, 0.14);
+  --rd-cat-industry-soft: rgba(45, 212, 191, 0.14);
 }
 
 #view-radar {
@@ -911,18 +972,15 @@ body.sheet-open { overflow: hidden; }
   overflow: hidden;
   border-radius: 20px;
   border: 1px solid var(--rd-line);
-  background:
-    radial-gradient(90% 120% at 85% -10%, rgba(56, 189, 248, 0.10), transparent 55%),
-    radial-gradient(70% 100% at 0% 110%, rgba(129, 140, 248, 0.08), transparent 50%),
-    linear-gradient(180deg, rgba(23, 28, 38, 0.9), rgba(15, 19, 26, 0.95));
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  background: var(--rd-hero-bg);
+  box-shadow: var(--shadow);
 }
 /* 网格底（Lucian #226 变体）：细网格 + 顶部渐隐 */
 .radar-grid-bg {
   position: absolute; inset: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 85%);
   -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 85%);
@@ -930,15 +988,16 @@ body.sheet-open { overflow: hidden; }
 /* 网格光流：一道亮带从下往上缓缓流过网格（Lucian #226 的核心动效） */
 .radar-grid-flow {
   position: absolute; inset: -40% 0; pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.07) 45%, rgba(56, 189, 248, 0.14) 50%, rgba(56, 189, 248, 0.07) 55%, transparent);
+  background: linear-gradient(180deg, transparent, var(--rd-accent-soft) 45%, color-mix(in srgb, var(--rd-accent) 20%, transparent) 50%, var(--rd-accent-soft) 55%, transparent);
   animation: radar-grid-flow 9s linear infinite;
 }
 @keyframes radar-grid-flow { from { transform: translateY(-55%); } to { transform: translateY(55%); } }
 /* 地平线辉光：底边一道霓虹 */
 .radar-horizon {
   position: absolute; left: 0; right: 0; bottom: 0; height: 1px; pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55) 30%, rgba(129, 140, 248, 0.55) 70%, transparent);
-  box-shadow: 0 -8px 32px rgba(56, 189, 248, 0.18);
+  background: linear-gradient(90deg, transparent, var(--rd-accent) 30%, var(--rd-cat-tool) 70%, transparent);
+  opacity: .55;
+  box-shadow: 0 -8px 32px var(--rd-accent-soft);
 }
 .radar-hero-inner {
   position: relative;
@@ -965,7 +1024,7 @@ body.sheet-open { overflow: hidden; }
 #radar-hero h1 {
   margin: 0 0 14px;
   font-size: 42px; font-weight: 700; letter-spacing: 1px;
-  background: linear-gradient(100deg, #f2f6fb 20%, #7dd3fc 55%, #a5b4fc 80%);
+  background: var(--rd-hero-title);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .radar-hero-sub {
@@ -975,12 +1034,12 @@ body.sheet-open { overflow: hidden; }
 .radar-stat {
   min-width: 96px; padding: 12px 16px;
   border: 1px solid var(--rd-line); border-radius: 12px;
-  background: rgba(15, 19, 26, 0.55); backdrop-filter: blur(8px);
+  background: var(--rd-surface); backdrop-filter: blur(8px);
 }
 .radar-stat b {
   display: block; font-size: 26px; font-weight: 700; line-height: 1.1;
   font-variant-numeric: tabular-nums;
-  background: linear-gradient(180deg, #eaf3fb, #8fd4f5); -webkit-background-clip: text; background-clip: text; color: transparent;
+  background: var(--rd-stat-num); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .radar-stat span { display: block; margin-top: 5px; font-size: 11.5px; letter-spacing: 1.5px; color: var(--rd-dim); }
 
@@ -988,36 +1047,36 @@ body.sheet-open { overflow: hidden; }
 #radar-scope {
   position: relative; flex-shrink: 0; width: 200px; height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.05), transparent 70%);
+  background: radial-gradient(circle, var(--rd-accent-soft), transparent 70%);
 }
 #radar-scope .radar-ticks {
   position: absolute; inset: 0; border-radius: 50%;
-  background: repeating-conic-gradient(from 0deg, rgba(148, 163, 184, 0.35) 0deg 1deg, transparent 1deg 12deg);
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--ink) 35%, transparent) 0deg 1deg, transparent 1deg 12deg);
   mask-image: radial-gradient(circle, transparent 62%, #000 63%, #000 68%, transparent 69%);
   -webkit-mask-image: radial-gradient(circle, transparent 62%, #000 63%, #000 68%, transparent 69%);
 }
-#radar-scope .radar-ring { position: absolute; border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 50%; }
+#radar-scope .radar-ring { position: absolute; border: 1px solid color-mix(in srgb, var(--rd-accent) 22%, transparent); border-radius: 50%; }
 #radar-scope .r1 { inset: 0; }
 #radar-scope .r2 { inset: 33px; }
 #radar-scope .r3 { inset: 66px; }
-#radar-scope .radar-axis { position: absolute; background: rgba(56, 189, 248, 0.14); }
+#radar-scope .radar-axis { position: absolute; background: color-mix(in srgb, var(--rd-accent) 14%, transparent); }
 #radar-scope .radar-axis.v { left: 50%; top: 0; bottom: 0; width: 1px; }
 #radar-scope .radar-axis.h { top: 50%; left: 0; right: 0; height: 1px; }
 #radar-scope .radar-sweep {
   position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(56, 189, 248, 0.55), rgba(56, 189, 248, 0.10) 48deg, transparent 60deg);
+  background: conic-gradient(from 0deg, color-mix(in srgb, var(--rd-accent) 55%, transparent), color-mix(in srgb, var(--rd-accent) 10%, transparent) 48deg, transparent 60deg);
   animation: radar-spin 3.6s linear infinite;
   mix-blend-mode: screen;
 }
 #radar-scope .radar-blip {
   position: absolute; width: 6px; height: 6px; border-radius: 50%;
-  background: #7dd3fc; box-shadow: 0 0 12px 3px rgba(56, 189, 248, 0.75);
+  background: var(--rd-accent); box-shadow: 0 0 12px 3px color-mix(in srgb, var(--rd-accent) 75%, transparent);
   animation: radar-breathe 2.8s ease-in-out infinite;
 }
 #radar-scope .rb1 { top: 24%; left: 30%; }
 #radar-scope .rb2 { top: 32%; left: 66%; animation-delay: .8s; }
 #radar-scope .rb3 { top: 68%; left: 34%; animation-delay: 1.5s; }
-#radar-scope .rb4 { top: 58%; left: 78%; animation-delay: 2.1s; background: #c4b5fd; box-shadow: 0 0 12px 3px rgba(167, 139, 250, 0.7); }
+#radar-scope .rb4 { top: 58%; left: 78%; animation-delay: 2.1s; background: var(--rd-cat-tool); box-shadow: 0 0 12px 3px color-mix(in srgb, var(--rd-cat-tool) 70%, transparent); }
 @keyframes radar-spin { to { transform: rotate(360deg); } }
 @keyframes radar-breathe { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 
@@ -1033,11 +1092,11 @@ body.sheet-open { overflow: hidden; }
   margin-left: auto;
   padding: 7px 16px;
   border: 1px solid var(--rd-line-bright); border-radius: 999px;
-  background: rgba(56, 189, 248, 0.08); color: #9fd7f5;
+  background: var(--rd-accent-soft); color: var(--rd-accent);
   font-size: 12.5px; letter-spacing: 1px; cursor: pointer;
   transition: border-color .18s, background .18s, color .18s, box-shadow .18s;
 }
-.radar-refresh-btn:hover { border-color: var(--rd-accent); background: var(--rd-accent-soft); color: #d3effd; box-shadow: 0 0 18px rgba(56, 189, 248, 0.25); }
+.radar-refresh-btn:hover { border-color: var(--rd-accent); background: var(--rd-accent-soft); box-shadow: 0 0 18px var(--rd-accent-soft); }
 
 /* ── 控制台（频段 / 窗口分段器）── */
 .radar-console {
@@ -1050,7 +1109,7 @@ body.sheet-open { overflow: hidden; }
 .radar-console-label {
   font-size: 11px; letter-spacing: 2px; color: var(--rd-dim); text-transform: uppercase;
 }
-.radar-seg { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--rd-line); border-radius: 999px; background: rgba(15, 19, 26, 0.5); }
+.radar-seg { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--rd-line); border-radius: 999px; background: color-mix(in srgb, var(--bg) 80%, var(--surface)); }
 .radar-seg-btn {
   padding: 6px 15px;
   border: 0; border-radius: 999px;
@@ -1060,15 +1119,16 @@ body.sheet-open { overflow: hidden; }
 }
 .radar-seg-btn:hover { color: var(--rd-text); }
 .radar-seg-btn.active {
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.10));
-  color: #bde8fd; box-shadow: 0 0 14px rgba(56, 189, 248, 0.22), inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+  background: var(--rd-accent);
+  color: var(--on-accent, #fff);
+  box-shadow: 0 0 14px var(--rd-accent-soft), inset 0 0 0 1px color-mix(in srgb, var(--rd-accent) 40%, transparent);
 }
 .radar-count-line { margin-left: auto; font-size: 12.5px; color: var(--rd-dim); font-variant-numeric: tabular-nums; }
 .radar-saved-line {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin: -6px 2px 18px; padding: 10px 16px;
   border: 1px dashed var(--rd-line-bright); border-radius: 14px;
-  background: rgba(28, 34, 44, 0.4);
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
 }
 .radar-saved-line[hidden] { display: none; }
 
@@ -1088,27 +1148,27 @@ body.sheet-open { overflow: hidden; }
 /* 霓虹分类色（卡顶部光边 + 徽章底色） */
 .radar-card::before {
   content: ''; position: absolute; top: 0; left: 14%; right: 14%; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--cat-glow, rgba(56, 189, 248, 0.7)), transparent);
+  background: linear-gradient(90deg, transparent, var(--cat-glow, var(--rd-accent)), transparent);
   opacity: .55; transition: opacity .2s;
 }
 .radar-card:hover {
   border-color: var(--rd-line-bright); background: var(--rd-surface-hover);
   transform: translateY(-2px);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35), 0 0 22px var(--cat-glow-soft, rgba(56, 189, 248, 0.10));
+  box-shadow: var(--shadow), 0 0 22px var(--cat-glow-soft, var(--rd-accent-soft));
 }
 .radar-card:hover::before { opacity: 1; }
-.radar-card.cat-model { --cat-glow: rgba(96, 165, 250, 0.8); --cat-glow-soft: rgba(96, 165, 250, 0.14); }
-.radar-card.cat-tool { --cat-glow: rgba(167, 139, 250, 0.8); --cat-glow-soft: rgba(167, 139, 250, 0.14); }
-.radar-card.cat-practice { --cat-glow: rgba(52, 211, 153, 0.8); --cat-glow-soft: rgba(52, 211, 153, 0.14); }
-.radar-card.cat-paper { --cat-glow: rgba(251, 191, 36, 0.8); --cat-glow-soft: rgba(251, 191, 36, 0.14); }
-.radar-card.cat-industry { --cat-glow: rgba(45, 212, 191, 0.8); --cat-glow-soft: rgba(45, 212, 191, 0.14); }
+.radar-card.cat-model { --cat-glow: var(--rd-cat-model); --cat-glow-soft: var(--rd-cat-model-soft); }
+.radar-card.cat-tool { --cat-glow: var(--rd-cat-tool); --cat-glow-soft: var(--rd-cat-tool-soft); }
+.radar-card.cat-practice { --cat-glow: var(--rd-cat-practice); --cat-glow-soft: var(--rd-cat-practice-soft); }
+.radar-card.cat-paper { --cat-glow: var(--rd-cat-paper); --cat-glow-soft: var(--rd-cat-paper-soft); }
+.radar-card.cat-industry { --cat-glow: var(--rd-cat-industry); --cat-glow-soft: var(--rd-cat-industry-soft); }
 
 .radar-card-head { display: flex; align-items: center; gap: 9px; }
 .radar-cat-badge {
   padding: 3px 11px; border-radius: 999px;
   font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
   background: var(--cat-glow-soft, var(--rd-accent-soft));
-  color: var(--cat-glow, #7dd3fc);
+  color: var(--cat-glow, var(--rd-accent));
 }
 .radar-card-meta { font-size: 12px; color: var(--rd-dim); font-variant-numeric: tabular-nums; }
 .radar-card-title { margin: 0; }
@@ -1117,7 +1177,7 @@ body.sheet-open { overflow: hidden; }
   font-size: 15.5px; font-weight: 600; line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.radar-card-title-link:hover { color: #9fd7f5; text-decoration: underline; text-underline-offset: 3px; }
+.radar-card-title-link:hover { color: var(--rd-accent-dark, var(--rd-accent)); text-decoration: underline; text-underline-offset: 3px; }
 .radar-card-summary {
   margin: 0; font-size: 13px; line-height: 1.65; color: var(--rd-muted);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1131,14 +1191,14 @@ body.sheet-open { overflow: hidden; }
 .radar-keep-btn {
   flex-shrink: 0;
   padding: 6px 14px;
-  border: 1px solid var(--cat-glow, rgba(56, 189, 248, 0.5)); border-radius: 999px;
-  background: transparent; color: var(--cat-glow, #7dd3fc);
+  border: 1px solid var(--cat-glow, var(--rd-accent)); border-radius: 999px;
+  background: transparent; color: var(--cat-glow, var(--rd-accent));
   font-size: 12px; cursor: pointer;
   transition: background .18s, box-shadow .18s;
 }
 .radar-keep-btn:hover {
   background: var(--cat-glow-soft, var(--rd-accent-soft));
-  box-shadow: 0 0 16px var(--cat-glow-soft, rgba(56, 189, 248, 0.2));
+  box-shadow: 0 0 16px var(--cat-glow-soft, var(--rd-accent-soft));
 }
 
 /* ── 空态 ── */
@@ -1172,19 +1232,19 @@ body.sheet-open { overflow: hidden; }
 .radar-chan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .radar-chan-list li { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: baseline; }
 .radar-chan-link { color: var(--rd-text); text-decoration: none; font-size: 14px; font-weight: 600; }
-.radar-chan-link:hover { color: #9fd7f5; text-decoration: underline; text-underline-offset: 3px; }
+.radar-chan-link:hover { color: var(--rd-accent-dark, var(--rd-accent)); text-decoration: underline; text-underline-offset: 3px; }
 .radar-chan-arrow { color: var(--rd-dim); font-size: 12px; opacity: 0; transition: opacity .18s; }
 .radar-chan-list li:hover .radar-chan-arrow { opacity: 1; }
 .radar-chan-what { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.55; color: var(--rd-muted); }
 @media (min-width: 800px) { .radar-channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; } .radar-channels-title { grid-column: 1 / -1; } }
 
-/* ── 收进雷达菜单（深色玻璃浮层）── */
+/* ── 收进雷达菜单（玻璃浮层，跟随主题）── */
 .radar-menu {
   position: fixed; z-index: 80; min-width: 240px; max-width: 320px;
   padding: 14px;
   border: 1px solid var(--rd-line-bright); border-radius: 14px;
-  background: rgba(18, 23, 31, 0.95); backdrop-filter: blur(14px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 24px rgba(56, 189, 248, 0.10);
+  background: var(--surface); backdrop-filter: blur(14px);
+  box-shadow: var(--shadow), 0 0 24px var(--rd-accent-soft);
   color: var(--rd-text);
 }
 .radar-menu-hint { margin: 0 0 10px; font-size: 12px; line-height: 1.6; color: var(--rd-muted); }
@@ -1192,7 +1252,7 @@ body.sheet-open { overflow: hidden; }
   display: block; width: 100%; text-align: left;
   padding: 9px 12px; margin-bottom: 6px;
   border: 1px solid var(--rd-line); border-radius: 10px;
-  background: rgba(28, 34, 44, 0.7); color: var(--rd-text);
+  background: color-mix(in srgb, var(--surface) 70%, var(--soft)); color: var(--rd-text);
   font-size: 13px; cursor: pointer;
   transition: border-color .18s, background .18s;
 }
@@ -1221,4 +1281,11 @@ body.sheet-open { overflow: hidden; }
   .radar-channels { grid-template-columns: 1fr; }
   .radar-console { gap: 14px; }
   .radar-count-line { margin-left: 0; }
+}
+
+/* ── 交互视差（radar.js 控制 transform，这里只保证过渡平滑）── */
+#radar-scope { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.radar-card { transform-style: preserve-3d; will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  #radar-scope, .radar-card { transition: none; will-change: auto; }
 }
