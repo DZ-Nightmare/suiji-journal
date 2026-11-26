@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self' https://api.github.com https://hn.algolia.com https://hf-mirror.com https://api.xiaomimimo.com; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1795677234545" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1795677234545">
-  <link rel="stylesheet" href="styles.css?v=1795677234545">
-  <script src="app.js?v=1795677234545" defer></script>
+  <link rel="icon" href="icon.svg?v=1795680977858" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1795680977858">
+  <link rel="stylesheet" href="styles.css?v=1795680977858">
+  <script src="app.js?v=1795680977858" defer></script>
   <script src="radar.js" defer></script>
   <script src="ai.js" defer></script>
 </head>
@@ -248,6 +248,29 @@
           </div>
         </div>
 
+        <div class="radar-view-switch" role="tablist" aria-label="雷达视图">
+          <button class="radar-view-btn active" data-radar-view="briefing" role="tab" aria-selected="true" type="button">◉ 今日情报</button>
+          <button class="radar-view-btn" data-radar-view="signals" role="tab" aria-selected="false" type="button">◈ 全信号 <span id="radar-view-signals-count"></span></button>
+        </div>
+
+        <div id="radar-view-briefing" class="radar-view">
+          <div id="radar-briefing-hero" class="radar-briefing-hero">
+            <p class="radar-eyebrow"><span class="radar-pulse-dot" aria-hidden="true"></span>AI INTEL OFFICER · 为你过滤了噪音</p>
+            <h2 id="radar-briefing-title" class="radar-briefing-title">今日 AI 情报</h2>
+            <p class="radar-briefing-sub">从 <b id="radar-briefing-total">0</b> 条今日信号里，按你的兴趣挑出真正有关的，写成 3 分钟能读完的日报。兴趣在「画像」里随时改。</p>
+            <button id="radar-profile-btn" class="radar-ai-btn" type="button">◐ 我的画像</button>
+            <button id="radar-briefing-gen" class="radar-ai-btn" type="button">✧ 重新生成</button>
+          </div>
+          <div id="radar-briefing-body" class="radar-briefing-body">
+            <div id="radar-briefing-empty" class="radar-briefing-empty">
+              <span class="radar-empty-glyph" aria-hidden="true">◉</span>
+              <p>配好 MIMO key 和兴趣画像，点「✧ 重新生成」出第一份情报。</p>
+            </div>
+            <div id="radar-briefing-report" hidden></div>
+          </div>
+        </div>
+
+        <div id="radar-view-signals" class="radar-view" hidden>
         <div class="radar-console">
           <div class="radar-console-group">
             <span class="radar-console-label">频段</span>
@@ -258,7 +281,6 @@
             <div id="radar-window-filter" class="radar-seg"></div>
           </div>
           <input id="radar-search" class="radar-search" type="search" placeholder="搜信号：标题 / 摘要 / 点评…" aria-label="搜索雷达信号">
-          <button id="radar-brief-btn" class="radar-ai-btn" type="button">✧ 生成今日简报</button>
           <button id="radar-week-btn" class="radar-ai-btn" type="button" hidden>✧ 总结此频段</button>
           <span id="radar-count-line" class="radar-count-line"></span>
         </div>
@@ -303,6 +325,23 @@
           <p id="radar-empty-text">点「⟳ 刷新」重试；网络不通时，渠道目录也能帮你找到入口。</p>
         </div>
         <div id="radar-channels" class="radar-channels" hidden></div>
+        </div><!-- /radar-view-signals -->
+
+        <!-- 兴趣画像配置抽屉 -->
+        <div id="radar-profile" class="radar-detail" hidden aria-label="我的画像">
+          <div class="radar-detail-head">
+            <span class="radar-eyebrow">◐ 我的画像</span>
+            <button id="radar-profile-close" class="radar-ask-close" aria-label="关闭画像">✕</button>
+          </div>
+          <p class="radar-profile-hint">告诉情报官你是谁、关注什么，它只把跟你有关的信号写进日报。画像只存在这台浏览器。</p>
+          <label class="radar-profile-label">我是谁 / 在做什么</label>
+          <textarea id="radar-profile-role" class="radar-profile-input" rows="2" placeholder="例：小米汽车厂内物流系统的运维 + AI agent 工具链搭建者"></textarea>
+          <label class="radar-profile-label">关注方向（一行一个）</label>
+          <textarea id="radar-profile-topics" class="radar-profile-input" rows="4" placeholder="例：&#10;AI agent 编排框架&#10;本地模型推理&#10;物流 AI 应用"></textarea>
+          <label class="radar-profile-label">不关心的（一行一个，可选）</label>
+          <textarea id="radar-profile-ignore" class="radar-profile-input" rows="2" placeholder="例：&#10;游戏模拟器&#10;加密货币"></textarea>
+          <button id="radar-profile-save" class="radar-ai-btn radar-profile-save" type="button">保存画像</button>
+        </div>
       </section>
     </main>
 

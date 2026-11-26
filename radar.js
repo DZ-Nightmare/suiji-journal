@@ -243,40 +243,72 @@ async function typewriter(el, text, speed = 18) {
 }
 
 /* 简报：top 信号总结成「今天值得关注什么」 */
+/* ---------- AI 情报官：个性化日报（2026-11-26 重做）----------
+   从需求出发：打开雷达想带走的是「今天跟我有关的事」，不是 90 张卡。
+   情报官拿全部信号 + 用户画像，先筛掉不关心的，再写一份 3 分钟能读完的日报。 */
+const RADAR_PROFILE_KEY = 'suiji-radar-profile';
+function loadProfile() {
+  try { return JSON.parse(localStorage.getItem(RADAR_PROFILE_KEY) || '{}'); } catch { return {}; }
+}
+function saveProfile(p) {
+  try { localStorage.setItem(RADAR_PROFILE_KEY, JSON.stringify(p)); } catch {}
+}
+function hasProfile() {
+  const p = loadProfile();
+  return !!(p.role || p.topics || p.ignore);
+}
+/* 本地预筛：画像里的「不关心」词命中就过滤；「关注」词命中加权排前 */
+function profileFilteredSignals() {
+  const p = loadProfile();
+  let items = radarState.signals;
+  const ignoreWords = (p.ignore || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  if (ignoreWords.length) {
+    items = items.filter((s) => !ignoreWords.some((w) => [s.title, s.summary].join(' ').toLocaleLowerCase().includes(w.toLocaleLowerCase())));
+  }
+  const topics = [...(p.topics || '').split('\n'), p.role].map((s) => s.trim()).filter(Boolean);
+  if (topics.length) {
+    items = [...items].sort((a, b) => {
+      const hitA = topics.some((t) => [a.title, a.summary].join(' ').toLocaleLowerCase().includes(t.toLocaleLowerCase()));
+      const hitB = topics.some((t) => [b.title, b.summary].join(' ').toLocaleLowerCase().includes(t.toLocaleLowerCase()));
+      return (hitB ? 1 : 0) - (hitA ? 1 : 0);
+    });
+  }
+  return items;
+}
+
 async function generateBrief() {
   if (radarBriefBusy) return;
   if (!hasMimoKey()) { toast('先在 AI 点评里配 MIMO key'); return; }
-  const cached = briefCache();
-  if (cached && cached.date === todayStr()) {
-    showBrief(cached.text, false);
-    return;
-  }
+  if (!hasProfile()) { $('radar-profile').hidden = false; toast('先填一下画像，情报官才知道你关心什么'); return; }
   radarBriefBusy = true;
-  const btn = $('radar-brief-btn');
-  btn.textContent = '✧ 正在生成简报…';
+  const btn = $('radar-briefing-gen');
+  btn.textContent = '✧ 正在写情报…';
   btn.classList.add('charging');
-  const items = filteredRadarSignals().slice(0, 15);
-  if (!items.length) { radarBriefBusy = false; btn.textContent = '✧ 生成今日简报'; btn.classList.remove('charging'); return; }
-  const lines = items.map((s) => `- [${s.source}] ${s.title}${s.summary ? `：${s.summary.slice(0, 80)}` : ''}`).join('\n');
+  const items = profileFilteredSignals().slice(0, 40);
+  if (!items.length) { radarBriefBusy = false; btn.textContent = '✧ 重新生成'; btn.classList.remove('charging'); return; }
+  const p = loadProfile();
+  const lines = items.map((s, i) => `${i + 1}. [${s.source}] ${s.title}${s.summary ? `：${s.summary.slice(0, 100)}` : ''}`).join('\n');
   try {
     const text = await window.aiModule.mimoOnce([
-      { role: 'system', content: '你是 AI 雷达的简报员。根据信号列表写一份中文早报，120-160 字：先一句总体判断，再挑 3-5 条最值得关注的各用一句说清它是什么、为什么重要。不要编号列表，用连贯段落。' },
-      { role: 'user', content: lines },
+      { role: 'system', content: '你是「AI 情报官」，为一位具体的人写个性化日报。严格按这个结构输出：\n\n【今日要点】2-3 句：今天 AI 圈最重要的动向。\n【对你有关的】从列表里挑 3-5 条最贴合用户画像的，每条一行：先一句它是什么，再一句「对你的意义」。\n【值得动手】1-2 条：值得今天就去试的工具或方法，说明怎么开始。\n【可以略过】一句话：今天的热闹里哪些跟用户无关，不用看。\n\n语言：中文，直接、不客套，像一位懂技术的同事。总长 250-350 字。' },
+      { role: 'user', content: `我的画像：${p.role || '（没写角色）'}\n关注方向：${p.topics || '（没写）'}\n\n今日信号（已按相关性排序）：\n${lines}` },
     ]);
     if (text) {
-      localStorage.setItem(RADAR_BRIEF_KEY, JSON.stringify({ date: todayStr(), text }));
-      showBrief(text, true);
+      localStorage.setItem(RADAR_BRIEF_KEY, JSON.stringify({ date: todayStr(), text, profile: p }));
+      renderBriefing(text, true);
     }
   } catch (e) {
-    toast(`简报生成失败：${e.message}`);
+    toast(`情报生成失败：${e.message}`);
   }
   radarBriefBusy = false;
-  btn.textContent = '✧ 生成今日简报';
+  btn.textContent = '✧ 重新生成';
   btn.classList.remove('charging');
 }
 
 function showBrief(text, animate) {
+  /* 兼容旧的简报条（频段周报仍用它） */
   const box = $('radar-brief');
+  if (!box) return;
   const body = $('radar-brief-body');
   box.hidden = false;
   $('radar-brief-date').textContent = todayStr();
@@ -284,6 +316,29 @@ function showBrief(text, animate) {
   else body.textContent = text;
   box.classList.add('brief-in');
   setTimeout(() => box.classList.remove('brief-in'), 500);
+}
+
+/* 情报官日报渲染：把 AI 输出的【】分段转成带样式的卡片块 */
+function renderBriefing(text, animate) {
+  const empty = $('radar-briefing-empty');
+  const report = $('radar-briefing-report');
+  empty.hidden = true;
+  report.hidden = false;
+  const sections = text.split(/【(.+?)】/).slice(1);  // [标题, 内容, 标题, 内容, ...]
+  const blocks = [];
+  for (let i = 0; i < sections.length; i += 2) {
+    blocks.push({ title: sections[i], body: sections[i + 1]?.trim() || '' });
+  }
+  report.replaceChildren();
+  blocks.forEach((b, i) => {
+    const sec = node('section', undefined, 'radar-briefing-section');
+    const h = node('h3', b.title, 'radar-briefing-section-h');
+    const p = node('p', undefined, 'radar-briefing-section-body');
+    sec.append(h, p);
+    report.append(sec);
+    if (animate) typewriter(p, b.body, 6);
+    else p.textContent = b.body;
+  });
 }
 
 /* 频段周报：选中某频段时的总结 */
@@ -439,13 +494,12 @@ function renderRadar() {
   document.querySelectorAll('#radar-cat-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.cat));
   document.querySelectorAll('#radar-window-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.win));
   document.querySelectorAll('#radar-saved-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === (radarState.savedStatus || '')));
-  /* 周报按钮只在选中具体频段时出现；简报缓存今天已有则直接展示 */
+  /* 周报按钮只在选中具体频段时出现；情报官日报缓存今天已有则直接展示 */
   $('radar-week-btn').hidden = !radarState.cat;
   if (radarState.cat) $('radar-week-btn').textContent = `✧ 总结${radarState.cat}频段`;
   const bc = briefCache();
   if (bc && bc.date === todayStr()) {
-    $('radar-brief-title').textContent = '今日简报';
-    showBrief(bc.text, false);
+    renderBriefing(bc.text, false);
   }
   renderRadarChannels();
 }
@@ -825,8 +879,53 @@ function initNebula() {
   else requestAnimationFrame(frame);
 }
 
+/* 视图切换：今日情报（默认）/ 全信号 */
+function setRadarView(view) {
+  $('radar-view-briefing').hidden = view !== 'briefing';
+  $('radar-view-signals').hidden = view !== 'signals';
+  document.querySelectorAll('.radar-view-btn').forEach((b) => {
+    const on = b.dataset.radarView === view;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+}
+function openProfile() {
+  const p = loadProfile();
+  $('radar-profile-role').value = p.role || '';
+  $('radar-profile-topics').value = p.topics || '';
+  $('radar-profile-ignore').value = p.ignore || '';
+  $('radar-profile').hidden = false;
+}
+
 document.addEventListener('DOMContentLoaded', radarParallaxAttach);
 document.addEventListener('DOMContentLoaded', initNebula);
+document.addEventListener('DOMContentLoaded', () => {
+  $('radar-brief-btn')?.addEventListener('click', generateBrief);
+  $('radar-week-btn')?.addEventListener('click', generateWeekReport);
+  $('radar-briefing-gen')?.addEventListener('click', generateBrief);
+  $('radar-profile-btn')?.addEventListener('click', openProfile);
+  $('radar-profile-close')?.addEventListener('click', () => { $('radar-profile').hidden = true; });
+  $('radar-profile-save')?.addEventListener('click', () => {
+    saveProfile({
+      role: $('radar-profile-role').value.trim(),
+      topics: $('radar-profile-topics').value.trim(),
+      ignore: $('radar-profile-ignore').value.trim(),
+    });
+    $('radar-profile').hidden = true;
+    toast('画像已保存，重新生成一份情报吧');
+  });
+  document.querySelectorAll('.radar-view-btn').forEach((b) => {
+    b.addEventListener('click', () => setRadarView(b.dataset.radarView));
+  });
+  /* 默认情报官视图；今日信号总数挂到切换按钮上 */
+  setRadarView('briefing');
+  const total = radarState.signals.filter((s) => Date.now() / 1000 - s.at < 86400).length;
+  $('radar-briefing-total').textContent = total;
+  $('radar-view-signals-count').textContent = total ? `· ${total}` : '';
+  /* 情报官日报缓存今天已有则直接展示 */
+  const bc = briefCache();
+  if (bc && bc.date === todayStr()) renderBriefing(bc.text, false);
+});
 document.addEventListener('DOMContentLoaded', () => {
   $('radar-brief-btn')?.addEventListener('click', generateBrief);
   $('radar-week-btn')?.addEventListener('click', generateWeekReport);
