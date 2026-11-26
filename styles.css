@@ -960,9 +960,7 @@ body.sheet-open { overflow: hidden; }
 }
 
 #view-radar {
-  padding: 8px 4px 60px;
-  max-width: 1100px;
-  margin: 0 auto;
+  padding: 8px 2px 60px;
   color: var(--rd-text);
 }
 
@@ -1447,3 +1445,123 @@ body.sheet-open { overflow: hidden; }
 }
 /* 点评生成中的信号卡微光提示（card 由 annotateRadar 逐条写入时 renderRadar 整刷，光扫不必要；
    这里是「AI 点评」存在的视觉锚点：与小模板句的灰不同，带主题色左条 */
+
+/* ═══════════ 雷达 AI 功能动效（2026-11-26） ═══════════ */
+
+/* ── 简报条：一段「电文」── */
+.radar-brief {
+  margin: 4px 2px 16px; padding: 14px 18px;
+  border: 1px solid var(--rd-line); border-left: 3px solid var(--rd-accent);
+  border-radius: 14px; background: var(--rd-surface);
+  animation: brief-in .5s cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes brief-in {
+  from { opacity: 0; transform: translateY(-6px) scaleY(.96); }
+  to   { opacity: 1; transform: none; }
+}
+.radar-brief[hidden] { display: none; }
+.radar-brief-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.radar-brief-glyph { color: var(--rd-accent); font-size: 15px; }
+.radar-brief-head b { font-size: 14px; color: var(--rd-text); }
+.radar-brief-date { margin-left: auto; font-size: 11px; color: var(--rd-dim); letter-spacing: 1px; }
+.radar-brief-body { font-size: 13.5px; line-height: 1.8; color: var(--rd-muted); white-space: pre-wrap; }
+
+/* 打字机光标：AI 生成中的文字末尾一个闪烁竖条 */
+.typing::after {
+  content: '▍';
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--rd-accent);
+  animation: typing-blink 1s step-end infinite;
+}
+@keyframes typing-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* ── AI 按钮充电脉冲（生成简报/周报中）── */
+.radar-ai-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--rd-line-bright); border-radius: 999px;
+  background: transparent; color: var(--rd-muted);
+  font-size: 12.5px; cursor: pointer;
+  transition: border-color .18s, color .18s, box-shadow .18s;
+}
+.radar-ai-btn:hover { border-color: var(--rd-accent); color: var(--rd-accent); }
+.radar-ai-btn.charging {
+  border-color: var(--rd-accent); color: var(--rd-accent);
+  animation: ai-charge 1.4s ease-in-out infinite;
+}
+@keyframes ai-charge {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rd-accent) 30%, transparent); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* ── 卡片锁定（追问中）呼吸高亮 ── */
+.radar-card.card-locked {
+  border-color: var(--rd-accent);
+  animation: card-locked 2s ease-in-out infinite;
+}
+@keyframes card-locked {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rd-accent) 22%, transparent); }
+  50% { box-shadow: 0 0 22px 4px color-mix(in srgb, var(--rd-accent) 16%, transparent); }
+}
+
+/* ── 追问浮层：从卡片位置展开 ── */
+.radar-ask-pop {
+  position: fixed; z-index: 85; width: 320px; max-width: 92vw;
+  background: var(--surface); border: 1px solid var(--rd-line-bright); border-radius: 14px;
+  box-shadow: var(--shadow), 0 0 24px color-mix(in srgb, var(--rd-accent) 12%, transparent);
+  animation: pop-in .28s cubic-bezier(.16, 1, .3, 1);
+  display: flex; flex-direction: column;
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.radar-ask-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px; border-bottom: 1px solid var(--rd-line);
+  font-size: 12px; color: var(--rd-muted);
+}
+.radar-ask-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rd-text); }
+.radar-ask-glyph { color: var(--rd-accent); }
+.radar-ask-close {
+  border: 0; background: transparent; color: var(--rd-dim); font-size: 13px; cursor: pointer;
+}
+.radar-ask-close:hover { color: var(--rd-text); }
+.radar-ask-msgs {
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 8px;
+  max-height: 220px; overflow-y: auto;
+}
+.radar-ask-q { align-self: flex-end; background: var(--ai-msg-user-bg, var(--soft)); color: var(--ink); border-radius: 10px 10px 3px 10px; padding: 7px 11px; font-size: 12.5px; max-width: 85%; }
+.radar-ask-a { align-self: flex-start; background: var(--soft); color: var(--body); border-radius: 10px 10px 10px 3px; padding: 7px 11px; font-size: 12.5px; max-width: 90%; line-height: 1.6; white-space: pre-wrap; }
+.radar-ask-input-row { display: flex; gap: 6px; padding: 9px 12px 11px; border-top: 1px solid var(--rd-line); }
+.radar-ask-input {
+  flex: 1; border: 1px solid var(--rd-line); border-radius: 9px;
+  background: var(--surface); color: var(--ink); padding: 7px 10px; font-size: 12.5px; outline: none;
+}
+.radar-ask-input:focus { border-color: var(--rd-accent); }
+.radar-ask-send {
+  border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent);
+  font-size: 12px; font-weight: 600; padding: 0 12px; cursor: pointer;
+}
+.radar-ask-btn {
+  flex-shrink: 0; padding: 6px 12px;
+  border: 1px dashed var(--rd-line-bright); border-radius: 999px;
+  background: transparent; color: var(--rd-dim); font-size: 12px; cursor: pointer;
+  transition: border-color .18s, color .18s;
+}
+.radar-ask-btn:hover { border-color: var(--rd-accent); color: var(--rd-accent); }
+
+/* ── 搜获扫描：卡片进视口一道光扫过 + 边缘脉冲 ── */
+@keyframes radar-scan {
+  0% { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+.radar-card.scan-in {
+  animation: radar-scan .8s ease-out 1;
+  background-image: linear-gradient(115deg, transparent 20%, color-mix(in srgb, var(--rd-accent) 20%, transparent) 45%, transparent 65%);
+  background-size: 200% 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar-brief, .radar-ask-pop, .typing::after, .radar-ai-btn.charging, .radar-card.card-locked, .radar-card.scan-in { animation: none; }
+  .typing::after { display: none; }
+}

@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self' https://api.github.com https://hn.algolia.com https://hf-mirror.com https://api.xiaomimimo.com; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1795658166780" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1795658166780">
-  <link rel="stylesheet" href="styles.css?v=1795658166780">
-  <script src="app.js?v=1795658166780" defer></script>
+  <link rel="icon" href="icon.svg?v=1795659307829" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1795659307829">
+  <link rel="stylesheet" href="styles.css?v=1795659307829">
+  <script src="app.js?v=1795659307829" defer></script>
   <script src="radar.js" defer></script>
   <script src="ai.js" defer></script>
 </head>
@@ -256,7 +256,14 @@
             <span class="radar-console-label">窗口</span>
             <div id="radar-window-filter" class="radar-seg"></div>
           </div>
+          <button id="radar-brief-btn" class="radar-ai-btn" type="button">✧ 生成今日简报</button>
+          <button id="radar-week-btn" class="radar-ai-btn" type="button" hidden>✧ 总结此频段</button>
           <span id="radar-count-line" class="radar-count-line"></span>
+        </div>
+
+        <div id="radar-brief" class="radar-brief" hidden>
+          <div class="radar-brief-head"><span class="radar-brief-glyph">✧</span><b id="radar-brief-title">今日简报</b><span id="radar-brief-date" class="radar-brief-date"></span></div>
+          <div id="radar-brief-body" class="radar-brief-body"></div>
         </div>
 
         <div id="radar-saved-bar" class="radar-saved-line" hidden>

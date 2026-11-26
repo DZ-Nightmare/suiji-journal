@@ -182,6 +182,127 @@ async function annotateRadar() {
   $('radar-source-line').textContent = `来源：${srcs.join(' / ') || '都没拉通'}`;
 }
 
+/* ---------- AI 简报 / 频段周报（2026-11-26）----------
+   FDE 阅读节奏：先简报（今天该看什么）后深挖（单条追问）再复盘（频段周报）。
+   简报按「日期」存 localStorage，同一天不重复烧额度；
+   周报按「频段+日期」存，同频段同一天不重复。 */
+const RADAR_BRIEF_KEY = 'suiji-radar-brief';
+const RADAR_WEEK_KEY = 'suiji-radar-week';
+let radarBriefBusy = false;
+let radarWeekBusy = false;
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function briefCache() {
+  try { return JSON.parse(localStorage.getItem(RADAR_BRIEF_KEY) || 'null'); } catch { return null; }
+}
+function weekCache() {
+  try { return JSON.parse(localStorage.getItem(RADAR_WEEK_KEY) || '{}'); } catch { return {}; }
+}
+function hasMimoKey() {
+  try { return !!(localStorage.getItem('suiji-mimo-key') || ''); } catch { return false; }
+}
+
+/* 打字机：逐字出现 + 光标闪烁；reduced-motion 时一次到位 */
+async function typewriter(el, text, speed = 18) {
+  if (!el) return;
+  el.textContent = '';
+  el.classList.add('typing');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = text;
+    el.classList.remove('typing');
+    return;
+  }
+  for (let i = 0; i < text.length; i++) {
+    el.textContent += text[i];
+    if (i % 3 === 0) await new Promise((r) => setTimeout(r, speed));
+  }
+  el.classList.remove('typing');
+}
+
+/* 简报：top 信号总结成「今天值得关注什么」 */
+async function generateBrief() {
+  if (radarBriefBusy) return;
+  if (!hasMimoKey()) { toast('先在 AI 点评里配 MIMO key'); return; }
+  const cached = briefCache();
+  if (cached && cached.date === todayStr()) {
+    showBrief(cached.text, false);
+    return;
+  }
+  radarBriefBusy = true;
+  const btn = $('radar-brief-btn');
+  btn.textContent = '✧ 正在生成简报…';
+  btn.classList.add('charging');
+  const items = filteredRadarSignals().slice(0, 15);
+  if (!items.length) { radarBriefBusy = false; btn.textContent = '✧ 生成今日简报'; btn.classList.remove('charging'); return; }
+  const lines = items.map((s) => `- [${s.source}] ${s.title}${s.summary ? `：${s.summary.slice(0, 80)}` : ''}`).join('\n');
+  try {
+    const text = await window.aiModule.mimoOnce([
+      { role: 'system', content: '你是 AI 雷达的简报员。根据信号列表写一份中文早报，120-160 字：先一句总体判断，再挑 3-5 条最值得关注的各用一句说清它是什么、为什么重要。不要编号列表，用连贯段落。' },
+      { role: 'user', content: lines },
+    ]);
+    if (text) {
+      localStorage.setItem(RADAR_BRIEF_KEY, JSON.stringify({ date: todayStr(), text }));
+      showBrief(text, true);
+    }
+  } catch (e) {
+    toast(`简报生成失败：${e.message}`);
+  }
+  radarBriefBusy = false;
+  btn.textContent = '✧ 生成今日简报';
+  btn.classList.remove('charging');
+}
+
+function showBrief(text, animate) {
+  const box = $('radar-brief');
+  const body = $('radar-brief-body');
+  box.hidden = false;
+  $('radar-brief-date').textContent = todayStr();
+  if (animate) typewriter(body, text);
+  else body.textContent = text;
+  box.classList.add('brief-in');
+  setTimeout(() => box.classList.remove('brief-in'), 500);
+}
+
+/* 频段周报：选中某频段时的总结 */
+async function generateWeekReport() {
+  if (radarWeekBusy) return;
+  const cat = radarState.cat;
+  if (!cat) return;
+  if (!hasMimoKey()) { toast('先在 AI 点评里配 MIMO key'); return; }
+  const cached = weekCache();
+  if (cached[cat] && cached[cat].date === todayStr()) {
+    showBrief(cached[cat].text, false);
+    $('radar-brief-title').textContent = `${cat}频段周报`;
+    return;
+  }
+  radarWeekBusy = true;
+  const btn = $('radar-week-btn');
+  btn.textContent = `✧ 正在总结${cat}…`;
+  btn.classList.add('charging');
+  const items = filteredRadarSignals().slice(0, 20);
+  try {
+    const text = await window.aiModule.mimoOnce([
+      { role: 'system', content: '你是 AI 雷达的复盘员。根据信号列表写一份频段周报，100-140 字：这个领域最近在发生什么、有什么趋势、哪几条最值得动手试。连贯段落，不编号。' },
+      { role: 'user', content: items.map((s) => `- [${s.source}] ${s.title}${s.summary ? `：${s.summary.slice(0, 80)}` : ''}`).join('\n') },
+    ]);
+    if (text) {
+      const w = weekCache();
+      w[cat] = { date: todayStr(), text };
+      localStorage.setItem(RADAR_WEEK_KEY, JSON.stringify(w));
+      $('radar-brief-title').textContent = `${cat}频段周报`;
+      showBrief(text, true);
+    }
+  } catch (e) {
+    toast(`周报生成失败：${e.message}`);
+  }
+  radarWeekBusy = false;
+  btn.textContent = '✧ 总结此频段';
+  btn.classList.remove('charging');
+}
+
 function initRadar(state) {
   radarState.saved = Array.isArray(state.radar) ? state.radar : [];
   radarState.signals = [];
@@ -236,6 +357,14 @@ function renderRadar() {
   document.querySelectorAll('#radar-cat-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.cat));
   document.querySelectorAll('#radar-window-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.win));
   document.querySelectorAll('#radar-saved-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === (radarState.savedStatus || '')));
+  /* 周报按钮只在选中具体频段时出现；简报缓存今天已有则直接展示 */
+  $('radar-week-btn').hidden = !radarState.cat;
+  if (radarState.cat) $('radar-week-btn').textContent = `✧ 总结${radarState.cat}频段`;
+  const bc = briefCache();
+  if (bc && bc.date === todayStr()) {
+    $('radar-brief-title').textContent = '今日简报';
+    showBrief(bc.text, false);
+  }
   renderRadarChannels();
 }
 
@@ -261,10 +390,60 @@ function renderRadarCard(sig) {
   const whyP = node('p', aiWhy || sig.why, aiWhy ? 'radar-card-why radar-why-ai' : 'radar-card-why');
   whyP.title = aiWhy ? 'MIMO 点评' : '为什么值得看';
   foot.append(whyP);
+  const ask = button('问 AI', 'radar-ask-btn', () => openRadarAsk(sig, card));
   const keep = button('收进雷达', 'radar-keep-btn', () => openRadarKeepMenu(sig));
-  foot.append(keep);
+  foot.append(ask, keep);
   card.append(foot);
   return card;
+}
+
+/* ---------- 卡片内追问（功能2）----------
+   点「问 AI」：卡片锁定呼吸，浮层从卡片位置展开（不居中打断视线），
+   流式回复打字机。不做缓存（每次真问，追问本来就是深挖）。 */
+async function openRadarAsk(sig, card) {
+  if (!hasMimoKey()) { toast('先在 AI 点评里配 MIMO key'); return; }
+  const old = document.querySelector('.radar-ask-pop');
+  if (old) old.remove();
+  card.classList.add('card-locked');
+  const pop = node('div', undefined, 'radar-ask-pop');
+  pop.innerHTML = `
+    <div class="radar-ask-head"><span class="radar-ask-glyph">◉</span><b>${sig.source} · ${sig.title.slice(0, 40)}</b><button class="radar-ask-close">✕</button></div>
+    <div class="radar-ask-msgs"><div class="radar-ask-q">这条是什么？和我们有什么关系？</div><div class="radar-ask-a typing"><span class="radar-ask-cursor"></span></div></div>
+    <div class="radar-ask-input-row"><input class="radar-ask-input" placeholder="继续追问…"><button class="radar-ask-send">发送</button></div>`;
+  document.body.appendChild(pop);
+  const r = card.getBoundingClientRect();
+  pop.style.left = `${Math.max(8, r.left)}px`;
+  pop.style.top = `${Math.min(window.innerHeight - 320, r.bottom + 8)}px`;
+  pop.classList.add('pop-in');
+  const msgs = pop.querySelector('.radar-ask-msgs');
+  const aEl = pop.querySelector('.radar-ask-a');
+  const input = pop.querySelector('.radar-ask-input');
+  const sendBtn = pop.querySelector('.radar-ask-send');
+  pop.querySelector('.radar-ask-close').addEventListener('click', () => { pop.remove(); card.classList.remove('card-locked'); });
+
+  const ask = async (q) => {
+    if (!q.trim()) return;
+    aEl.classList.add('typing');
+    aEl.textContent = '';
+    try {
+      const response = await fetch(`${'https://api.xiaomimimo.com/v1'}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('suiji-mimo-key') || ''}` },
+        body: JSON.stringify({ model: 'mimo-v2.6-pro', messages: [
+          { role: 'system', content: '你是 AI 雷达的解说员。用中文回答，60 字以内，直接说它是什么、为什么值得关注，不客套。' },
+          { role: 'user', content: `来源：${sig.source}\n标题：${sig.title}\n${sig.summary ? `摘要：${sig.summary}` : ''}\n\n用户问：${q}` },
+        ], stream: true }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await streamText(response, (piece) => { aEl.textContent += piece; msgs.scrollTop = msgs.scrollHeight; });
+    } catch (e) {
+      aEl.textContent = `出错了：${e.message}`;
+    }
+    aEl.classList.remove('typing');
+  };
+  sendBtn.addEventListener('click', () => { ask(input.value); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ask(input.value); input.value = ''; } });
+  ask('这条信号是什么？和我们有什么关系？');
 }
 
 function renderSavedRow(entry) {
@@ -404,6 +583,10 @@ function radarParallaxAttach() {
   radarParallaxEnable(!view.hidden);
 }
 document.addEventListener('DOMContentLoaded', radarParallaxAttach);
+document.addEventListener('DOMContentLoaded', () => {
+  $('radar-brief-btn')?.addEventListener('click', generateBrief);
+  $('radar-week-btn')?.addEventListener('click', generateWeekReport);
+});
 
 /* 暴露给 app.js */
-window.radarModule = { initRadar, setupRadarFilters, renderRadar, refreshRadar, radarParallaxEnable, annotateRadar };
+window.radarModule = { initRadar, setupRadarFilters, renderRadar, refreshRadar, radarParallaxEnable, annotateRadar, generateBrief, generateWeekReport };
