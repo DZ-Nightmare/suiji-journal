@@ -14,6 +14,10 @@ const RADAR_SOURCES = [
     params: () => '?tags=story&hitsPerPage=30' },
   { key: 'hf', name: 'HF Daily Papers', url: 'https://hf-mirror.com/api/daily_papers',
     params: () => '?limit=30' },
+  /* dev.to：实践/方法/技巧类（CORS * 实测可用）。标签 ai + agent/tools 覆盖
+     「怎么用」的盲区——前三个源只有「新东西」。 */
+  { key: 'devto', name: 'Dev.to AI 实践', url: 'https://dev.to/api/articles',
+    params: () => `?tag=ai&top=7&per_page=30` },
 ];
 
 const RADAR_CHANNELS = [
@@ -130,6 +134,17 @@ function parseSignal(key, it) {
         why: '社区点赞的当日新论文，先看摘要能不能直接变成可复现的做法',
         score: paper.upvotes || it.votes || 0, at: Date.now() / 1000,
         meta: { upvotes: paper.upvotes || 0, authors, githubStars: paper.githubStars || 0 } };
+    }
+    if (key === 'devto') {
+      const title = it.title || '';
+      if (!title) return null;
+      return { id: `devto:${it.id}`, source: 'Dev.to AI 实践', category: '实践', title,
+        url: it.url || `https://dev.to${it.path || ''}`,
+        summary: (it.description || '').replace(/\s+/g, ' ').trim().slice(0, 220),
+        why: '实战文章：别人怎么把 AI 用起来、踩了什么坑',
+        score: (it.positive_reactions_count || 0) + (it.comments_count || 0) * 2,
+        at: Date.parse(it.published_at || '') / 1000 || Date.now() / 1000,
+        meta: { reactions: it.positive_reactions_count || 0, comments: it.comments_count || 0, tags: (it.tag_list || []).slice(0, 3) } };
     }
   } catch { /* 单条坏了不影响其他 */ }
   return null;
@@ -529,6 +544,8 @@ function renderRadarCard(sig) {
   if (m.comments) metaParts.push(`💬 ${m.comments}`);
   if (m.upvotes) metaParts.push(`▲ ${m.upvotes}`);
   if (m.githubStars) metaParts.push(`★ ${m.githubStars}`);
+  if (m.reactions) metaParts.push(`❤ ${m.reactions}`);
+  if (m.tags?.length) metaParts.push(...m.tags.map((t) => `#${t}`));
   if (m.authors?.length) metaParts.push(m.authors.join(', '));
   if (m.author) metaParts.push(m.author);
   if (metaParts.length) card.append(node('p', metaParts.join(' · '), 'radar-card-stats'));
