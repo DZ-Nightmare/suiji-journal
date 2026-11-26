@@ -8,10 +8,10 @@
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self' https://api.github.com https://hn.algolia.com https://hf-mirror.com https://api.xiaomimimo.com; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>随记 · 把瞬间留给时间</title>
-  <link rel="icon" href="icon.svg?v=1795659323202" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg?v=1795659323202">
-  <link rel="stylesheet" href="styles.css?v=1795659323202">
-  <script src="app.js?v=1795659323202" defer></script>
+  <link rel="icon" href="icon.svg?v=1795666994298" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg?v=1795666994298">
+  <link rel="stylesheet" href="styles.css?v=1795666994298">
+  <script src="app.js?v=1795666994298" defer></script>
   <script src="radar.js" defer></script>
   <script src="ai.js" defer></script>
 </head>
@@ -256,10 +256,13 @@
             <span class="radar-console-label">窗口</span>
             <div id="radar-window-filter" class="radar-seg"></div>
           </div>
+          <input id="radar-search" class="radar-search" type="search" placeholder="搜信号：标题 / 摘要 / 点评…" aria-label="搜索雷达信号">
           <button id="radar-brief-btn" class="radar-ai-btn" type="button">✧ 生成今日简报</button>
           <button id="radar-week-btn" class="radar-ai-btn" type="button" hidden>✧ 总结此频段</button>
           <span id="radar-count-line" class="radar-count-line"></span>
         </div>
+
+        <div id="radar-scanbar" class="radar-scanbar" hidden aria-hidden="true"><span class="radar-scan-seg a"></span><span class="radar-scan-seg b"></span></div>
 
         <div id="radar-brief" class="radar-brief" hidden>
           <div class="radar-brief-head"><span class="radar-brief-glyph">✧</span><b id="radar-brief-title">今日简报</b><span id="radar-brief-date" class="radar-brief-date"></span></div>
@@ -272,6 +275,27 @@
         </div>
 
         <div id="radar-feed" class="radar-feed"></div>
+
+        <!-- 信号详情抽屉：锁定目标 -->
+        <div id="radar-detail" class="radar-detail" hidden aria-label="信号详情">
+          <div class="radar-detail-head">
+            <span id="radar-detail-cat" class="radar-cat-badge cat-tool"></span>
+            <span id="radar-detail-source" class="radar-detail-source"></span>
+            <button id="radar-detail-close" class="radar-ask-close" aria-label="关闭详情">✕</button>
+          </div>
+          <h3 id="radar-detail-title" class="radar-detail-title"></h3>
+          <a id="radar-detail-link" class="radar-detail-link" target="_blank" rel="noreferrer noopener">打开原文 ↗</a>
+          <p id="radar-detail-summary" class="radar-detail-summary"></p>
+          <div class="radar-detail-why-box">
+            <span class="radar-detail-why-label">为什么值得看</span>
+            <p id="radar-detail-why" class="radar-detail-why"></p>
+          </div>
+          <div class="radar-detail-actions">
+            <button id="radar-detail-ask" class="radar-ai-btn" type="button">✧ 问 AI</button>
+            <button id="radar-detail-keep" class="radar-keep-btn" type="button">收进雷达</button>
+          </div>
+          <div id="radar-detail-ai" class="radar-detail-ai" hidden></div>
+        </div>
         <div id="radar-empty" class="radar-empty" hidden>
           <span class="radar-empty-glyph" aria-hidden="true">◉</span>
           <h3 id="radar-empty-title">还没拉到信号。</h3>

@@ -130,7 +130,7 @@ function parseSignal(key, it) {
 }
 
 /* ---------- 视图状态 ---------- */
-const radarState = { cat: '', win: 'today', showSaved: false, signals: [], saved: [], loading: false };
+const radarState = { cat: '', win: 'today', showSaved: false, signals: [], saved: [], loading: false, q: '' };
 
 /* ---------- AI 点评（2026-11-26）----------
    雷达卡片「为什么值得看」原先是写死的模板句；有 MIMO key 时拉完信号后
@@ -338,10 +338,39 @@ function filteredRadarSignals() {
   if (radarState.cat) items = items.filter(s => s.category === radarState.cat);
   if (radarState.win === 'today') items = items.filter(s => Date.now() / 1000 - s.at < 86400);
   else if (radarState.win === 'week') items = items.filter(s => Date.now() / 1000 - s.at < 7 * 86400);
+  if (radarState.q) {
+    const q = radarState.q.toLocaleLowerCase();
+    items = items.filter(s => [s.title, s.summary, radarAiWhyOf(s), s.source].join('\n').toLocaleLowerCase().includes(q));
+  }
   return items;
 }
 
 /* ---------- 渲染 ---------- */
+/* 数字波纹：Hero 三个统计数从 0 滚到目标值（rAF，600ms easeOut） */
+function rollRadarStats() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const targets = [
+    ['radar-live-count', radarState.signals.length],
+    ['radar-live-sources', new Set(radarState.signals.map((s) => s.source)).size],
+    ['radar-live-saved', radarState.saved.length],
+  ];
+  for (const [id, to] of targets) {
+    const el = $(id);
+    if (!el) continue;
+    const from = Number(el.textContent) || 0;
+    if (from === to) continue;
+    const t0 = performance.now();
+    const dur = 600;
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(from + (to - from) * eased);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+}
+
 function renderRadar() {
   const items = filteredRadarSignals();
   $('radar-count-line').textContent = radarState.loading ? '拉取中…' : `${items.length} 条信号 · 已收 ${radarState.saved.length}`;
@@ -354,6 +383,26 @@ function renderRadar() {
     $('radar-empty-text').textContent = radarState.loading ? '从三个公开源现拉，稍等一下。' : '换个频段，或点「⟳ 刷新」重拉。';
   }
   $('radar-feed').replaceChildren(...items.map(renderRadarCard));
+  /* 搜获扫描 + 错峰淡入：新卡片进视口时扫一道光、前 12 张错 18ms 淡入；
+     reduced-motion 时全跳过。 */
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const feedCards = document.querySelectorAll('.radar-card');
+    feedCards.forEach((c, i) => {
+      c.classList.add('stagger-in');
+      c.style.animationDelay = `${Math.min(i, 12) * 18}ms`;
+      if (!c.dataset.scanObserved) {
+        c.dataset.scanObserved = '1';
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((en) => {
+            if (en.isIntersecting) { en.target.classList.add('scan-in'); io.disconnect(); }
+          });
+        }, { threshold: 0.4 });
+        io.observe(c);
+      }
+    });
+  }
+  /* 数字波纹：Hero 统计数从 0 滚到目标 */
+  rollRadarStats();
   document.querySelectorAll('#radar-cat-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.cat));
   document.querySelectorAll('#radar-window-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === radarState.win));
   document.querySelectorAll('#radar-saved-filter .radar-seg-btn').forEach(el => el.classList.toggle('active', el.dataset.value === (radarState.savedStatus || '')));
@@ -376,10 +425,12 @@ function renderRadarCard(sig) {
   const badge = node('span', sig.category, `radar-cat-badge ${CAT_TONE[sig.category] || 'cat-tool'}`);
   head.append(badge, node('span', `${sig.source} · ${agoText(sig.at)}`, 'radar-card-meta'));
   card.append(head);
-  /* 标题（可点打开原文） */
+  /* 标题（点卡片开详情，不再直接跳原文；链接挪到详情抽屉里） */
   const title = node('h3', undefined, 'radar-card-title');
-  const t = node('a', sig.title, 'radar-card-title-link');
-  if (sig.url && /^https?:\/\//i.test(sig.url)) { t.href = sig.url; t.target = '_blank'; t.rel = 'noreferrer noopener'; }
+  const t = node('button', sig.title, 'radar-card-title-link');
+  t.type = 'button';
+  t.title = '点开详情';
+  t.addEventListener('click', () => openRadarDetail(sig));
   title.append(t);
   card.append(title);
   /* 摘要 */
@@ -395,6 +446,61 @@ function renderRadarCard(sig) {
   foot.append(ask, keep);
   card.append(foot);
   return card;
+}
+
+/* ---------- 详情抽屉（功能：看全简介 + 深挖单条）----------
+   点卡片标题（或任何空白处）打开；「锁定目标」隐喻，右侧滑入，不打断信号流。
+   抽屉里：全文摘要 + 为什么值得看 + 打开原文 + 问 AI + 收进雷达。 */
+let radarDetailSig = null;
+function openRadarDetail(sig) {
+  radarDetailSig = sig;
+  const d = $('radar-detail');
+  $('radar-detail-cat').textContent = sig.category;
+  $('radar-detail-cat').className = `radar-cat-badge ${CAT_TONE[sig.category] || 'cat-tool'}`;
+  $('radar-detail-source').textContent = `${sig.source} · ${agoText(sig.at)}`;
+  $('radar-detail-title').textContent = sig.title;
+  const link = $('radar-detail-link');
+  if (sig.url && /^https?:\/\//i.test(sig.url)) { link.href = sig.url; link.hidden = false; }
+  else link.hidden = true;
+  $('radar-detail-summary').textContent = sig.summary || '（无摘要）';
+  $('radar-detail-summary').hidden = !sig.summary;
+  $('radar-detail-why').textContent = radarAiWhyOf(sig) || sig.why;
+  $('radar-detail-ai').hidden = true;
+  $('radar-detail-ai').textContent = '';
+  d.hidden = false;
+  d.classList.remove('detail-in');
+  void d.offsetWidth;
+  d.classList.add('detail-in');
+}
+function closeRadarDetail() {
+  $('radar-detail').hidden = true;
+  radarDetailSig = null;
+}
+
+/* 抽屉里的「问 AI」：流式回答写进抽屉 */
+async function askInDetail() {
+  if (!radarDetailSig) return;
+  if (!hasMimoKey()) { toast('先在 AI 点评里配 MIMO key'); return; }
+  const sig = radarDetailSig;
+  const box = $('radar-detail-ai');
+  box.hidden = false;
+  box.classList.add('typing');
+  box.textContent = '';
+  try {
+    const response = await fetch(`${'https://api.xiaomimimo.com/v1'}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('suiji-mimo-key') || ''}` },
+      body: JSON.stringify({ model: 'mimo-v2.6-pro', messages: [
+        { role: 'system', content: '你是 AI 雷达的解说员。用中文回答，100 字以内，说清它是什么、为什么值得关注、值不值得花时间试，不客套。' },
+        { role: 'user', content: `来源：${sig.source}\n标题：${sig.title}\n${sig.summary ? `摘要：${sig.summary}` : ''}` },
+      ], stream: true }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await streamText(response, (piece) => { box.textContent += piece; });
+  } catch (e) {
+    box.textContent = `出错了：${e.message}`;
+  }
+  box.classList.remove('typing');
 }
 
 /* ---------- 卡片内追问（功能2）----------
@@ -514,6 +620,8 @@ async function refreshRadar() {
   radarState.loading = true;
   $('radar-fetched').textContent = '正在接入信号…';
   $('radar-source-line').textContent = '';
+  /* 扫描等待态：Hero 底一条往返扫描条替代文字 */
+  $('radar-scanbar').hidden = false;
   renderRadar();
   try {
     radarState.signals = await fetchRadarSignals();
@@ -526,6 +634,7 @@ async function refreshRadar() {
     $('radar-source-line').textContent = '网络不通时，渠道目录也能帮你找到入口';
   }
   radarState.loading = false;
+  $('radar-scanbar').hidden = true;
   renderRadar();
   annotateRadar();
 }
@@ -586,6 +695,16 @@ document.addEventListener('DOMContentLoaded', radarParallaxAttach);
 document.addEventListener('DOMContentLoaded', () => {
   $('radar-brief-btn')?.addEventListener('click', generateBrief);
   $('radar-week-btn')?.addEventListener('click', generateWeekReport);
+  /* 搜索：输入即过滤（防抖 200ms） */
+  const searchInput = $('radar-search');
+  let searchTimer;
+  searchInput?.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { radarState.q = searchInput.value.trim(); renderRadar(); }, 200);
+  });
+  $('radar-detail-close')?.addEventListener('click', closeRadarDetail);
+  $('radar-detail-ask')?.addEventListener('click', askInDetail);
+  $('radar-detail-keep')?.addEventListener('click', () => { if (radarDetailSig) openRadarKeepMenu(radarDetailSig); });
 });
 
 /* 暴露给 app.js */
