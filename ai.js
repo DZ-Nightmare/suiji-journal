@@ -27,7 +27,9 @@ function loadKey() {
 }
 
 /* ---------- 会话（仅存内存，不落盘）---------- */
-const aiSession = [];
+/* 当前这条随记的上下文：面板打开时固定下来；此前 bug 是只放卡片展示、没进对话，
+   导致 MIMO 收不到随记内容、回复「读不到」——修复：对话每次发送都带上上下文。 */
+let currentContext = '';
 const SYSTEM = [
   '你是「随记」的 AI 助手，帮用户整理、回想、消化自己的私人随记。',
   '规则：',
@@ -110,6 +112,8 @@ function openPanel(noteText, noteTitle) {
   panel.innerHTML = panelHTML();
   document.body.appendChild(panel);
   aiState.panel = panel;
+  /* 固定当前随记上下文：每次调用 MIMO 都带上，AI 才能读到这条随记 */
+  currentContext = `【随记】《${noteTitle || '无题'}》\n\n${noteText.slice(0, MAX_NOTE_CHARS)}`;
 
   const msgs = panel.querySelector('[data-host-ai-msgs]');
   const statusEl = panel.querySelector('[data-host-ai-status]');
@@ -141,11 +145,14 @@ function openPanel(noteText, noteTitle) {
     const userMsg = addMsg('user', text);
     const aiMsg = addMsg('ai', '');
     try {
-      const messages = [...aiSession, { role: 'user', content: text }];
+      const messages = [
+        { role: 'system', content: SYSTEM },
+        ...(currentContext ? [{ role: 'user', content: currentContext, name: 'context' }] : []),
+        { role: 'user', content: text },
+      ];
       const response = await mimoChat(messages);
       let acc = '';
       await streamText(response, (piece) => { acc += piece; aiMsg.textContent = acc; msgs.scrollTop = msgs.scrollHeight; });
-      aiSession.push({ role: 'user', content: text }, { role: 'assistant', content: acc });
       if (statusEl) statusEl.textContent = '点评完成 · 内容只在本次会话，刷新即散';
     } catch (err) {
       aiMsg.textContent = `出错了：${err.message}`;
