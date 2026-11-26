@@ -1679,3 +1679,36 @@ body.sheet-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .radar-detail.detail-in, .radar-card.stagger-in, .radar-card.scan-in, .radar-scan-seg { animation: none; }
 }
+
+/* ═══════════ 雷达 v5：星云粒子 / 锁定弧线 / 卡片分区（2026-11-26） ═══════════ */
+.radar-nebula {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; opacity: .8;
+}
+
+/* 锁定弧线：收进雷达成功瞬间一道弧线沿卡上沿扫过 */
+.radar-lock-arc {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cat-glow, var(--rd-accent)), transparent);
+  animation: lock-arc .7s cubic-bezier(.16, 1, .3, 1) 1;
+  pointer-events: none;
+}
+@keyframes lock-arc {
+  0% { transform: translateX(-100%); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* 卡片分区标题：每 12 张一组加一个小分隔（视觉层次，不打断流） */
+.radar-group-divider {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 10px;
+  margin: 18px 2px 4px;
+  color: var(--rd-dim); font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+}
+.radar-group-divider::after { content: ''; flex: 1; height: 1px; background: var(--rd-line); }
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-lock-arc { animation: none; }
+}

@@ -151,7 +151,15 @@ function radarAiLoad() {
 function radarAiSave() {
   try { localStorage.setItem(RADAR_AI_KEY, JSON.stringify(radarAiCache)); } catch {}
 }
-const radarAiWhyOf = (sig) => radarAiCache[sig.id] || '';
+/* 缓存结构从字符串升级为 { why, zh }；旧缓存是字符串，读时兼容 */
+const radarAiWhyOf = (sig) => {
+  const v = radarAiCache[sig.id];
+  return typeof v === 'string' ? v : v?.why || '';
+};
+const radarAiZhOf = (sig) => {
+  const v = radarAiCache[sig.id];
+  return typeof v === 'object' ? v.zh || '' : '';
+};
 let radarAiAnnotating = false;
 
 async function annotateRadar() {
@@ -169,12 +177,18 @@ async function annotateRadar() {
   for (const sig of items) {
     try {
       const prompt = [
-        { role: 'system', content: '你是 AI 雷达的点评员。给一条开源项目/HN 热帖/论文信号写一句中文点评，30 字以内，回答它值得关注的理由，不要客套话，不用"值得关注"开头。' },
+        { role: 'system', content: '你是 AI 雷达的点评员。给一条开源项目/HN 热帖/论文信号写中文点评。严格按这个格式输出两行：\n点评：30 字以内，回答它值得关注的理由，不要客套话。\n摘要：如果原文摘要存在，把它翻译成中文，40 字以内；如果原文没有摘要，用你自己的话一句话概括它是什么。' },
         { role: 'user', content: `来源：${sig.source}\n标题：${sig.title}\n${sig.summary ? `摘要：${sig.summary}` : ''}` },
       ];
       const line = await window.aiModule.mimoOnce(prompt);
       if (line) {
-        radarAiCache[sig.id] = line;
+        /* 解析「点评：…\n摘要：…」两行格式 */
+        const whyMatch = line.match(/点评[:：]\s*(.+)/);
+        const sumMatch = line.match(/摘要[:：]\s*(.+)/);
+        radarAiCache[sig.id] = {
+          why: (whyMatch?.[1] || line.split('\n')[0]).trim(),
+          zh: (sumMatch?.[1] || '').trim(),
+        };
         radarAiSave();
         renderRadar();
       }
@@ -389,6 +403,19 @@ function renderRadar() {
     $('radar-empty-text').textContent = radarState.loading ? '从三个公开源现拉，稍等一下。' : '换个频段，或点「⟳ 刷新」重拉。';
   }
   $('radar-feed').replaceChildren(...items.map(renderRadarCard));
+  /* 分组分隔：每 12 张一组加小标题（视觉层次，如「01-12 · 工具」「13-24 · 工具」） */
+  const feed = $('radar-feed');
+  const existingDividers = feed.querySelectorAll('.radar-group-divider');
+  existingDividers.forEach((d) => d.remove());
+  const cards = [...feed.querySelectorAll('.radar-card')];
+  if (cards.length > 12) {
+    for (let i = 12; i < cards.length; i += 12) {
+      const divider = node('div', undefined, 'radar-group-divider');
+      const firstTitle = cards[i]?.querySelector('.radar-card-title-link')?.textContent?.slice(0, 24) || '';
+      divider.textContent = `${String(i + 1).padStart(2, '0')} — ${String(Math.min(i + 12, cards.length)).padStart(2, '0')} · ${radarState.cat || '全部频段'}`;
+      cards[i].before(divider);
+    }
+  }
   /* 搜获扫描 + 错峰淡入：新卡片进视口时扫一道光、前 12 张错 18ms 淡入；
      reduced-motion 时全跳过。 */
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -451,8 +478,10 @@ function renderRadarCard(sig) {
   if (m.authors?.length) metaParts.push(m.authors.join(', '));
   if (m.author) metaParts.push(m.author);
   if (metaParts.length) card.append(node('p', metaParts.join(' · '), 'radar-card-stats'));
-  /* 第三层：摘要（3 行截断，点开抽屉看全文） */
-  if (sig.summary) card.append(node('p', sig.summary, 'radar-card-summary'));
+  /* 第三层：摘要（AI 中文摘要优先，原文兜底；3 行截断，点开抽屉看全文） */
+  const zh = radarAiZhOf(sig);
+  if (zh) card.append(node('p', zh, 'radar-card-summary radar-card-summary-zh'));
+  else if (sig.summary) card.append(node('p', sig.summary, 'radar-card-summary'));
   /* 底部：为什么值得看（AI 点评优先，模板句兜底）+ 操作 */
   const foot = node('div', undefined, 'radar-card-foot');
   const aiWhy = radarAiWhyOf(sig);
@@ -480,8 +509,8 @@ function openRadarDetail(sig) {
   const link = $('radar-detail-link');
   if (sig.url && /^https?:\/\//i.test(sig.url)) { link.href = sig.url; link.hidden = false; }
   else link.hidden = true;
-  $('radar-detail-summary').textContent = sig.summary || '（无摘要）';
-  $('radar-detail-summary').hidden = !sig.summary;
+  $('radar-detail-summary').textContent = radarAiZhOf(sig) || sig.summary || '（无摘要）';
+  $('radar-detail-summary').hidden = !(radarAiZhOf(sig) || sig.summary);
   $('radar-detail-why').textContent = radarAiWhyOf(sig) || sig.why;
   $('radar-detail-ai').hidden = true;
   $('radar-detail-ai').textContent = '';
@@ -618,6 +647,13 @@ function openRadarKeepMenu(sig) {
   const item = button(`收进雷达：${sig.title}`, 'radar-menu-item', () => {
     try { navigator.clipboard.writeText(command); toast(`已复制：${command}`); }
     catch { toast(`请复制这句话：${command}`); }
+    /* 锁定弧线：一道弧光沿卡片上沿扫过（目标锁定成功） */
+    const cardEl = document.querySelector(`#sig-${CSS.escape(sig.id)}`);
+    if (cardEl && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const arc = node('div', undefined, 'radar-lock-arc');
+      cardEl.appendChild(arc);
+      setTimeout(() => arc.remove(), 800);
+    }
     menu.remove();
   });
   item.append(node('span', `会存成 vault/05-Radar 条目（${sig.category}）`, 'radar-menu-desc'));
@@ -709,7 +745,88 @@ function radarParallaxAttach() {
   observer.observe(view, { attributes: true, attributeFilter: ['hidden'] });
   radarParallaxEnable(!view.hidden);
 }
+/* ---------- 星云粒子背景（2026-11-26）----------
+   Hero 里的 canvas：40 个星点缓慢漂移 + 呼吸明灭 + 偶发流星。
+   纯 rAF，reduced-motion 时画一帧静止星图。 */
+let nebulaState = null;
+let nebulaInited = false;
+function initNebula() {
+  const canvas = document.querySelector('#radar-nebula');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hero = canvas.parentElement;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const resize = () => {
+    /* Hero 可能刚显示时 offsetWidth 还是 0；取不到就不设，等下次 resize/视图进入再设 */
+    if (!hero.clientWidth || !hero.clientHeight) return;
+    canvas.width = hero.clientWidth * dpr;
+    canvas.height = hero.clientHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    nebulaInited = true;
+  };
+  resize();
+  window.addEventListener('resize', resize);
+  const N = 42;
+  const stars = Array.from({ length: N }, () => ({
+    x: Math.random(), y: Math.random(),
+    r: 0.5 + Math.random() * 1.3,
+    tw: 0.4 + Math.random() * 2.4,        // 呼吸周期
+    ph: Math.random() * Math.PI * 2,
+    vx: (Math.random() - 0.5) * 0.0006,    // 缓慢漂移
+    vy: (Math.random() - 0.5) * 0.0004,
+  }));
+  const meteors = [];
+  let last = performance.now();
+  const accent = () => getComputedStyle(document.documentElement).getPropertyValue('--rd-accent').trim() || '#38bdf8';
+  function frame(now) {
+    if (!nebulaInited) resize();
+    const dt = Math.min(50, now - last);
+    last = now;
+    ctx.clearRect(0, 0, hero.clientWidth, hero.clientHeight);
+    const w = hero.clientWidth, h = hero.clientHeight;
+    const col = accent();
+    for (const s of stars) {
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      if (s.x < 0) s.x = 1; if (s.x > 1) s.x = 0;
+      if (s.y < 0) s.y = 1; if (s.y > 1) s.y = 0;
+      const a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(now / 1000 * s.tw + s.ph));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    /* 偶发流星：每 4 秒约 15% 概率拉一条，2 秒滑过 */
+    if (!reduce && Math.random() < dt / 4000 * 0.15) {
+      meteors.push({ x: Math.random() * w * 0.8, y: Math.random() * h * 0.4, len: 60 + Math.random() * 90, t0: now });
+    }
+    for (let i = meteors.length - 1; i >= 0; i--) {
+      const m = meteors[i];
+      const p = (now - m.t0) / 2000;
+      if (p > 1) { meteors.splice(i, 1); continue; }
+      const x = m.x + p * 260, y = m.y + p * 90;
+      const grad = ctx.createLinearGradient(x, y, x - m.len, y - m.len * 0.35);
+      grad.addColorStop(0, col);
+      grad.addColorStop(1, 'transparent');
+      ctx.globalAlpha = 0.8 * (1 - p);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - m.len, y - m.len * 0.35);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  if (reduce) frame(performance.now());
+  else requestAnimationFrame(frame);
+}
+
 document.addEventListener('DOMContentLoaded', radarParallaxAttach);
+document.addEventListener('DOMContentLoaded', initNebula);
 document.addEventListener('DOMContentLoaded', () => {
   $('radar-brief-btn')?.addEventListener('click', generateBrief);
   $('radar-week-btn')?.addEventListener('click', generateWeekReport);
