@@ -1132,7 +1132,7 @@ body.sheet-open { overflow: hidden; }
 
 /* ── 信号流卡片：玻璃霓虹 ── */
 .radar-feed {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 14px; margin: 6px 2px 0;
 }
 .radar-card {
@@ -1178,7 +1178,13 @@ body.sheet-open { overflow: hidden; }
 .radar-card-title-link:hover { color: var(--rd-accent-dark, var(--rd-accent)); text-decoration: underline; text-underline-offset: 3px; }
 .radar-card-summary {
   margin: 0; font-size: 13px; line-height: 1.65; color: var(--rd-muted);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* meta 行：可信度信号（星数/评论/作者），tab 数字 + 浅色 */
+.radar-card-stats {
+  margin: 0; font-size: 12px; color: var(--rd-dim);
+  font-variant-numeric: tabular-nums;
+  display: flex; flex-wrap: wrap; gap: 4px 10px;
 }
 .radar-card-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 10px; }
 .radar-card-why {

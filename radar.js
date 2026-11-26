@@ -106,24 +106,30 @@ function parseSignal(key, it) {
       return { id: `gh:${name}`, source: 'GitHub Trending', category: '工具', title: name,
         url: it.html_url || `https://github.com/${name}`, summary: it.description || '',
         why: '近一周新建的高星仓库，先看它解决什么问题、跟现有工具链有没有重叠',
-        score: it.stargazers_count || 0, at: Date.now() / 1000 };
+        score: it.stargazers_count || 0, at: Date.now() / 1000,
+        meta: { stars: it.stargazers_count || 0, lang: it.language || '', forks: it.forks_count || 0 } };
     }
     if (key === 'hn') {
       const title = it.title || '';
       if (!title) return null;
       return { id: `hn:${it.objectID}`, source: 'Hacker News', category: '行业', title,
-        url: it.url || `https://news.ycombinator.com/item?id=${it.objectID}`, summary: '',
+        url: it.url || `https://news.ycombinator.com/item?id=${it.objectID}`,
+        summary: it.story_text ? it.story_text.replace(/\s+/g, ' ').trim().slice(0, 180) : '',
         why: 'HN 用户投票挑出来的，先看评论里在吵什么',
-        score: it.points || 0, at: it.created_at_i || Date.now() / 1000 };
+        score: it.points || 0, at: it.created_at_i || Date.now() / 1000,
+        meta: { points: it.points || 0, comments: it.num_comments || 0, author: it.author || '' } };
     }
     if (key === 'hf') {
       const paper = it.paper || {};
       const title = paper.title || it.title || '';
       if (!title) return null;
+      const authors = (paper.authors || []).map((a) => a.name).filter(Boolean).slice(0, 3);
       return { id: `hf:${paper.id || title}`, source: 'HF Daily Papers', category: '论文', title,
-        url: it.url || paper.url || '', summary: '',
+        url: paper.projectPage || paper.githubRepo || `https://huggingface.co/papers/${paper.id}`,
+        summary: (paper.summary || it.summary || '').replace(/\s+/g, ' ').trim().slice(0, 220),
         why: '社区点赞的当日新论文，先看摘要能不能直接变成可复现的做法',
-        score: it.votes || 0, at: Date.now() / 1000 };
+        score: paper.upvotes || it.votes || 0, at: Date.now() / 1000,
+        meta: { upvotes: paper.upvotes || 0, authors, githubStars: paper.githubStars || 0 } };
     }
   } catch { /* 单条坏了不影响其他 */ }
   return null;
@@ -420,12 +426,12 @@ function renderRadar() {
 function renderRadarCard(sig) {
   const card = node('article', undefined, `radar-card ${CAT_TONE[sig.category] || 'cat-tool'}`);
   card.id = `sig-${sig.id}`;
-  /* 头部：分类徽章 + 来源 · 时间 */
+  /* 第一层：分类徽章 + 来源 · 时间 */
   const head = node('div', undefined, 'radar-card-head');
   const badge = node('span', sig.category, `radar-cat-badge ${CAT_TONE[sig.category] || 'cat-tool'}`);
   head.append(badge, node('span', `${sig.source} · ${agoText(sig.at)}`, 'radar-card-meta'));
   card.append(head);
-  /* 标题（点卡片开详情，不再直接跳原文；链接挪到详情抽屉里） */
+  /* 第二层：标题（点开详情） */
   const title = node('h3', undefined, 'radar-card-title');
   const t = node('button', sig.title, 'radar-card-title-link');
   t.type = 'button';
@@ -433,9 +439,21 @@ function renderRadarCard(sig) {
   t.addEventListener('click', () => openRadarDetail(sig));
   title.append(t);
   card.append(title);
-  /* 摘要 */
+  /* meta 行：可信度信号（星数/评论/作者/语言）——调研结论：缺字段是卡片薄的主因 */
+  const m = sig.meta || {};
+  const metaParts = [];
+  if (m.stars) metaParts.push(`★ ${m.stars}`);
+  if (m.lang) metaParts.push(m.lang);
+  if (m.points) metaParts.push(`▲ ${m.points}`);
+  if (m.comments) metaParts.push(`💬 ${m.comments}`);
+  if (m.upvotes) metaParts.push(`▲ ${m.upvotes}`);
+  if (m.githubStars) metaParts.push(`★ ${m.githubStars}`);
+  if (m.authors?.length) metaParts.push(m.authors.join(', '));
+  if (m.author) metaParts.push(m.author);
+  if (metaParts.length) card.append(node('p', metaParts.join(' · '), 'radar-card-stats'));
+  /* 第三层：摘要（3 行截断，点开抽屉看全文） */
   if (sig.summary) card.append(node('p', sig.summary, 'radar-card-summary'));
-  /* 底部：为什么值得看（AI 点评优先，模板句兜底）+ 收进雷达 */
+  /* 底部：为什么值得看（AI 点评优先，模板句兜底）+ 操作 */
   const foot = node('div', undefined, 'radar-card-foot');
   const aiWhy = radarAiWhyOf(sig);
   const whyP = node('p', aiWhy || sig.why, aiWhy ? 'radar-card-why radar-why-ai' : 'radar-card-why');
