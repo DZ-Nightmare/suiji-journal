@@ -55,6 +55,22 @@ async function mimoChat(messages) {
   return res;
 }
 
+/* 非流式单发（雷达批量点评用）：一次拿完整回复，不逐字渲染 */
+async function mimoOnce(messages) {
+  const res = await fetch(`${MIMO_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiState.key}` },
+    body: JSON.stringify({ model: MIMO_MODEL, messages, stream: false }),
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try { const e = await res.json(); detail = e?.error?.message || detail; } catch {}
+    throw new Error(`MIMO 调用失败：${detail}`);
+  }
+  const data = await res.json();
+  return (data?.choices?.[0]?.message?.content || '').trim();
+}
+
 /* 流式读取 SSE：MIMO 返回 data: {choices:[{delta:{content}}]} 行，data: [DONE] 结束 */
 async function streamText(response, onDelta) {
   const reader = response.body.getReader();
@@ -207,4 +223,4 @@ function setupKeyEntry() {
 }
 
 /* 暴露给 app.js */
-window.aiModule = { openPanel, requestKey, setupKeyEntry, loadKey, saveKey };
+window.aiModule = { openPanel, requestKey, setupKeyEntry, loadKey, saveKey, mimoOnce };

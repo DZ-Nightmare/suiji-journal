@@ -132,12 +132,63 @@ function parseSignal(key, it) {
 /* ---------- 视图状态 ---------- */
 const radarState = { cat: '', win: 'today', showSaved: false, signals: [], saved: [], loading: false };
 
+/* ---------- AI 点评（2026-11-26）----------
+   雷达卡片「为什么值得看」原先是写死的模板句；有 MIMO key 时拉完信号后
+   自动对 top 信号生成一句真点评。结果存 localStorage（按信号 id），
+   已点评的不重复烧额度；无 key 时静默显示模板句。 */
+const RADAR_AI_KEY = 'suiji-radar-ai';
+const RADAR_AI_TOPN = 8;
+let radarAiCache = {};
+function radarAiLoad() {
+  try { radarAiCache = JSON.parse(localStorage.getItem(RADAR_AI_KEY) || '{}'); } catch { radarAiCache = {}; }
+}
+function radarAiSave() {
+  try { localStorage.setItem(RADAR_AI_KEY, JSON.stringify(radarAiCache)); } catch {}
+}
+const radarAiWhyOf = (sig) => radarAiCache[sig.id] || '';
+let radarAiAnnotating = false;
+
+async function annotateRadar() {
+  if (radarAiAnnotating) return;
+  if (!window.aiModule) return;
+  window.aiModule.loadKey?.();
+  /* aiState.key 不导出，用 localStorage 判断 */
+  let key = '';
+  try { key = localStorage.getItem('suiji-mimo-key') || ''; } catch {}
+  if (!key) return;
+  const items = filteredRadarSignals().slice(0, RADAR_AI_TOPN).filter((s) => !radarAiCache[s.id]);
+  if (!items.length) return;
+  radarAiAnnotating = true;
+  $('radar-source-line').textContent = `MIMO 正在点评 ${items.length} 条信号…`;
+  for (const sig of items) {
+    try {
+      const prompt = [
+        { role: 'system', content: '你是 AI 雷达的点评员。给一条开源项目/HN 热帖/论文信号写一句中文点评，30 字以内，回答它值得关注的理由，不要客套话，不用"值得关注"开头。' },
+        { role: 'user', content: `来源：${sig.source}\n标题：${sig.title}\n${sig.summary ? `摘要：${sig.summary}` : ''}` },
+      ];
+      const line = await window.aiModule.mimoOnce(prompt);
+      if (line) {
+        radarAiCache[sig.id] = line;
+        radarAiSave();
+        renderRadar();
+      }
+    } catch {
+      // 单条失败不中断；下一条继续
+      continue;
+    }
+  }
+  radarAiAnnotating = false;
+  const srcs = [...new Set(radarState.signals.map((s) => s.source))];
+  $('radar-source-line').textContent = `来源：${srcs.join(' / ') || '都没拉通'}`;
+}
+
 function initRadar(state) {
   radarState.saved = Array.isArray(state.radar) ? state.radar : [];
   radarState.signals = [];
   radarState.cat = '';
   radarState.win = 'today';
   radarState.showSaved = false;
+  radarAiLoad();
 }
 
 /* ---------- 筛选 ---------- */
@@ -204,9 +255,12 @@ function renderRadarCard(sig) {
   card.append(title);
   /* 摘要 */
   if (sig.summary) card.append(node('p', sig.summary, 'radar-card-summary'));
-  /* 底部：为什么值得看 + 收进雷达 */
+  /* 底部：为什么值得看（AI 点评优先，模板句兜底）+ 收进雷达 */
   const foot = node('div', undefined, 'radar-card-foot');
-  foot.append(node('p', sig.why, 'radar-card-why'));
+  const aiWhy = radarAiWhyOf(sig);
+  const whyP = node('p', aiWhy || sig.why, aiWhy ? 'radar-card-why radar-why-ai' : 'radar-card-why');
+  whyP.title = aiWhy ? 'MIMO 点评' : '为什么值得看';
+  foot.append(whyP);
   const keep = button('收进雷达', 'radar-keep-btn', () => openRadarKeepMenu(sig));
   foot.append(keep);
   card.append(foot);
@@ -294,6 +348,7 @@ async function refreshRadar() {
   }
   radarState.loading = false;
   renderRadar();
+  annotateRadar();
 }
 
 /* ---------- 交互式背景：鼠标视差（2026-11-25）----------
@@ -351,4 +406,4 @@ function radarParallaxAttach() {
 document.addEventListener('DOMContentLoaded', radarParallaxAttach);
 
 /* 暴露给 app.js */
-window.radarModule = { initRadar, setupRadarFilters, renderRadar, refreshRadar, radarParallaxEnable };
+window.radarModule = { initRadar, setupRadarFilters, renderRadar, refreshRadar, radarParallaxEnable, annotateRadar };

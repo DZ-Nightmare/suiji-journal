@@ -1437,3 +1437,13 @@ body.sheet-open { overflow: hidden; }
 @media (max-width: 700px) {
   .ai-panel { top: auto; right: 10px; bottom: 10px; left: 10px; width: auto; max-width: none; max-height: 72vh; }
 }
+
+/* ── 雷达 AI 点评（2026-11-26）── */
+.radar-card-why.radar-why-ai {
+  color: var(--rd-muted);
+  border-inline-start: 2px solid var(--rd-accent);
+  padding-inline-start: 8px;
+  font-style: italic;
+}
+/* 点评生成中的信号卡微光提示（card 由 annotateRadar 逐条写入时 renderRadar 整刷，光扫不必要；
+   这里是「AI 点评」存在的视觉锚点：与小模板句的灰不同，带主题色左条 */
